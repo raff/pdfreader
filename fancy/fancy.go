@@ -120,7 +120,7 @@ func (sr *SecReaderT) Seek(off int64, whence int) (ret int64, err error) {
 }
 
 func (sr *SecReaderT) ReadByte() (c byte, err error) {
-  if sr.pos < sr.size {
+  if sr.pos >= 0 && sr.pos < sr.size {
     b, p := sr.access(sr.pos)
     c = b[p]
     sr.pos++
@@ -131,8 +131,12 @@ func (sr *SecReaderT) ReadByte() (c byte, err error) {
 }
 
 func (sr *SecReaderT) UnreadByte() error {
-  sr.pos--
-  return nil
+  if sr.pos >= 0 {
+    sr.pos--
+    return nil
+  } else {
+    return io.EOF
+  }
 }
 
 func (sr *SecReaderT) Size() int64 { return sr.size }
