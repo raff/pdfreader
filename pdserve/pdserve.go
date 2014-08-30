@@ -9,39 +9,39 @@
 package main
 
 import (
-  "fmt"
-  "net/http"
-  "os"
-  "github.com/raff/pdfreader/pdfread"
-  "github.com/raff/pdfreader/strm"
-  "github.com/raff/pdfreader/svg"
+	"fmt"
+	"github.com/raff/pdfreader/pdfread"
+	"github.com/raff/pdfreader/strm"
+	"github.com/raff/pdfreader/svg"
+	"net/http"
+	"os"
 )
 
 var pd *pdfread.PdfReaderT
 
 // hello world, the web server
 func HelloServer(w http.ResponseWriter, req *http.Request) {
-  w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
-  page := strm.Int(req.URL.RawQuery, 1) - 1
-  w.Write(svg.Page(pd, page))
+	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
+	page := strm.Int(req.URL.RawQuery, 1) - 1
+	w.Write(svg.Page(pd, page))
 }
 
 func complain(err string) {
-  fmt.Printf("%susage: pdserve foo.pdf\n", err)
-  os.Exit(1)
+	fmt.Printf("%susage: pdserve foo.pdf\n", err)
+	os.Exit(1)
 }
 
 func main() {
-  if len(os.Args) == 1 || len(os.Args) > 2 {
-    complain("")
-  }
-  pd = pdfread.Load(os.Args[1])
-  if pd == nil {
-    complain("Could not load pdf file!\n\n")
-  }
-  http.Handle("/hello", http.HandlerFunc(HelloServer))
-  err := http.ListenAndServe(":12345", nil)
-  if err != nil {
-    panic(fmt.Sprintf("ListenAndServe: %s", err))
-  }
+	if len(os.Args) == 1 || len(os.Args) > 2 {
+		complain("")
+	}
+	pd = pdfread.Load(os.Args[1])
+	if pd == nil {
+		complain("Could not load pdf file!\n\n")
+	}
+	http.Handle("/hello", http.HandlerFunc(HelloServer))
+	err := http.ListenAndServe(":12345", nil)
+	if err != nil {
+		panic(fmt.Sprintf("ListenAndServe: %s", err))
+	}
 }

@@ -106,7 +106,7 @@ func (t *TiffBuilder) AddLong(tag uint16, value uint32) {
 }
 
 func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
-        log.Printf("offset: %08x\n", t.offset)
+	log.Printf("offset: %08x\n", t.offset)
 
 	n := len(t.ifd)
 	t.offset += 2 + (12 * uint32(n))
@@ -137,11 +137,11 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 
 	t.ifd = []IFDEntry{}
 	t.offset += uint32(len(data)) + 4
-        padding := (t.offset & 1) == 1
+	padding := (t.offset & 1) == 1
 
-        if padding {
-            t.offset += 1
-        }
+	if padding {
+		t.offset += 1
+	}
 
 	if next {
 		t.Write(uint32(t.offset))
@@ -151,9 +151,9 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 
 	t.w.Write(data)
 
-        if padding {
-            t.w.Write([]byte{ 0 })
-        }
+	if padding {
+		t.w.Write([]byte{0})
+	}
 }
 
 func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
