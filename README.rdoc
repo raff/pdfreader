@@ -6,15 +6,15 @@ over maintainence, I'm just experimenting with go.
 
 = Installation
 
-    go get -d github.com/yob/pdfreader
+    go get -d github.com/raff/pdfreader
 
 = Building
 
-    go install github.com/yob/pdfreader/pdtosvg
-    go install github.com/yob/pdfreader/pdstream
-    go install github.com/yob/pdfreader/tt1
-    go install github.com/yob/pdfreader/pdserve
-    go install github.com/yob/pdfreader/pdtest
+    go install github.com/raff/pdfreader/pdtosvg
+    go install github.com/raff/pdfreader/pdstream
+    go install github.com/raff/pdfreader/tt1
+    go install github.com/raff/pdfreader/pdserve
+    go install github.com/raff/pdfreader/pdtest
 
 = Usage
 
