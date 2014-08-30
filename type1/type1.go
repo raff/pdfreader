@@ -9,8 +9,8 @@ package type1
 
 import (
 	"fmt"
+        "encoding/hex"
 	"github.com/raff/pdfreader/fancy"
-	"github.com/raff/pdfreader/hex"
 	"github.com/raff/pdfreader/ps"
 	"github.com/raff/pdfreader/stacks"
 	"github.com/raff/pdfreader/strm"
@@ -98,8 +98,8 @@ func eexec(rdr fancy.Reader) []byte {
 	}
 	b = b[0:pos]
 	rdr.Seek(fpos+int64(k), 0)
-	if hex.IsHex(b[0]) {
-		b = hex.Decode(string(b))
+	if util.IsHex(b[0]) {
+		b, _ = hex.DecodeString(string(b))
 	}
 	return T1Decrypt(EEXEC_KEY, b)[4:]
 }
