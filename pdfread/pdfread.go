@@ -12,10 +12,11 @@ import (
   "regexp"
   "compress/zlib"
   "encoding/ascii85"
-  "github.com/yob/pdfreader/fancy"
-  "github.com/yob/pdfreader/hex"
-  "github.com/yob/pdfreader/lzw"
-  "github.com/yob/pdfreader/ps"
+  "encoding/hex"
+  "github.com/raff/pdfreader/fancy"
+  //"github.com/raff/pdfreader/hex"
+  "github.com/raff/pdfreader/lzw"
+  "github.com/raff/pdfreader/ps"
 )
 
 // limits
@@ -58,14 +59,20 @@ func min(a, b int) int {
 func end(a []byte, n int) int { return max(0, len(a)-n) }
 
 func num(n []byte) (r int) {
+  mul := 1
+
   for i := 0; i < len(n); i++ {
+    if i == 0 && n[i] == '-' {
+        mul = -1
+        continue
+    }
     if n[i] >= '0' && n[i] <= '9' {
       r = r*10 + int(n[i]-'0')
     } else {
       break
     }
   }
-  return
+  return r * mul
 }
 
 func refToken(f fancy.Reader) ([]byte, int64) {
@@ -410,7 +417,7 @@ func (pd *PdfReaderT) DecodedStream(reference []byte) (DictionaryT, []byte) {
         }
         data = fancy.ReadAll(ascii85.NewDecoder(fancy.SliceReader(ds)))
       case "/ASCIIHexDecode":
-        data = hex.Decode(string(data))
+        data, _ = hex.DecodeString(string(data))
       default:
         data = []byte{}
       }
