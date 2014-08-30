@@ -11,12 +11,12 @@ package svg
 import (
   "fmt"
   "os"
-  "github.com/yob/pdfreader/fancy"
-  "github.com/yob/pdfreader/pdfread"
-  "github.com/yob/pdfreader/strm"
-  "github.com/yob/pdfreader/svgdraw"
-  "github.com/yob/pdfreader/svgtext"
-  "github.com/yob/pdfreader/util"
+  "github.com/raff/pdfreader/fancy"
+  "github.com/raff/pdfreader/pdfread"
+  "github.com/raff/pdfreader/strm"
+  "github.com/raff/pdfreader/svgdraw"
+  "github.com/raff/pdfreader/svgtext"
+  "github.com/raff/pdfreader/util"
 )
 
 func complain(err string) {

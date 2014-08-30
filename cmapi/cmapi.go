@@ -8,11 +8,11 @@
 package cmapi
 
 import (
-  "github.com/yob/pdfreader/cmapt"
-  "github.com/yob/pdfreader/fancy"
-  "github.com/yob/pdfreader/ps"
-  "github.com/yob/pdfreader/stacks"
-  "github.com/yob/pdfreader/xchar"
+  "github.com/raff/pdfreader/cmapt"
+  "github.com/raff/pdfreader/fancy"
+  "github.com/raff/pdfreader/ps"
+  "github.com/raff/pdfreader/stacks"
+  "github.com/raff/pdfreader/xchar"
 )
 
 // CMap "interpreter" - this PS btw.

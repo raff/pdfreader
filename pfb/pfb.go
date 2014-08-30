@@ -9,7 +9,8 @@
 package pfb
 
 import (
-  "github.com/yob/pdfreader/hex"
+  //"github.com/raff/pdfreader/hex"
+  "encoding/hex"
 )
 
 func Decode(b []byte) []byte {
@@ -25,7 +26,7 @@ func Decode(b []byte) []byte {
     if b[1] == 1 {
       r = append(r, b[6:l]...)
     } else {
-      r = append(r, hex.Encode(b[6:l])...)
+      r = append(r, []byte(hex.EncodeToString(b[6:l]))...)
     }
     b = b[l:]
   }

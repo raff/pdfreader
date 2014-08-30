@@ -11,9 +11,9 @@ package main
 import (
   "fmt"
   "os"
-  "github.com/yob/pdfreader/pdfread"
-  "github.com/yob/pdfreader/strm"
-  "github.com/yob/pdfreader/svg"
+  "github.com/raff/pdfreader/pdfread"
+  "github.com/raff/pdfreader/strm"
+  "github.com/raff/pdfreader/svg"
 )
 
 // The program takes a PDF file and converts a page to SVG.

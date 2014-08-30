@@ -11,8 +11,8 @@ package main
 import (
   "os"
   "fmt"
-  "github.com/yob/pdfreader/pdfread"
-  "github.com/yob/pdfreader/util"
+  "github.com/raff/pdfreader/pdfread"
+  "github.com/raff/pdfreader/util"
 )
 
 // The program takes a PDF file and an object reference of a stream.

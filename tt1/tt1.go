@@ -12,10 +12,10 @@ import (
   "fmt"
   "os"
   "io/ioutil"
-  "github.com/yob/pdfreader/fancy"
-  "github.com/yob/pdfreader/pfb"
-  "github.com/yob/pdfreader/type1"
-  "github.com/yob/pdfreader/util"
+  "github.com/raff/pdfreader/fancy"
+  "github.com/raff/pdfreader/pfb"
+  "github.com/raff/pdfreader/type1"
+  "github.com/raff/pdfreader/util"
 )
 
 // use this program with a pfa-font - it is only here for testing

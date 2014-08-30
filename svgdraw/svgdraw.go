@@ -10,10 +10,10 @@ package svgdraw
 
 import (
   "fmt"
-  "github.com/yob/pdfreader/graf"
-  "github.com/yob/pdfreader/stacks"
-  "github.com/yob/pdfreader/strm"
-  "github.com/yob/pdfreader/util"
+  "github.com/raff/pdfreader/graf"
+  "github.com/raff/pdfreader/stacks"
+  "github.com/raff/pdfreader/strm"
+  "github.com/raff/pdfreader/util"
 )
 
 type SvgT struct {

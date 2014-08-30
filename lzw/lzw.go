@@ -9,7 +9,7 @@
 package lzw
 
 import (
-  "github.com/yob/pdfreader/crush"
+  "github.com/raff/pdfreader/crush"
 )
 
 const (

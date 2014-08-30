@@ -10,14 +10,14 @@ package svgtext
 
 import (
   "io/ioutil"
-  "github.com/yob/pdfreader/cmapi"
-  "github.com/yob/pdfreader/cmapt"
-  "github.com/yob/pdfreader/fancy"
-  "github.com/yob/pdfreader/graf"
-  "github.com/yob/pdfreader/pdfread"
-  "github.com/yob/pdfreader/ps"
-  "github.com/yob/pdfreader/strm"
-  "github.com/yob/pdfreader/util"
+  "github.com/raff/pdfreader/cmapi"
+  "github.com/raff/pdfreader/cmapt"
+  "github.com/raff/pdfreader/fancy"
+  "github.com/raff/pdfreader/graf"
+  "github.com/raff/pdfreader/pdfread"
+  "github.com/raff/pdfreader/ps"
+  "github.com/raff/pdfreader/strm"
+  "github.com/raff/pdfreader/util"
 )
 
 const WIDTH_DENSITY = 10000

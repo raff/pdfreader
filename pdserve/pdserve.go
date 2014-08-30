@@ -12,9 +12,9 @@ import (
   "fmt"
   "net/http"
   "os"
-  "github.com/yob/pdfreader/pdfread"
-  "github.com/yob/pdfreader/strm"
-  "github.com/yob/pdfreader/svg"
+  "github.com/raff/pdfreader/pdfread"
+  "github.com/raff/pdfreader/strm"
+  "github.com/raff/pdfreader/svg"
 )
 
 var pd *pdfread.PdfReaderT
