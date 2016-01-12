@@ -9,7 +9,7 @@
 package ps
 
 import (
-        "encoding/hex"
+	"encoding/hex"
 
 	"github.com/raff/pdfreader/fancy"
 )

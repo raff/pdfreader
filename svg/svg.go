@@ -34,20 +34,20 @@ func Page(pd *pdfread.PdfReaderT, page int, xmlDecl bool) []byte {
 	svgtext.New(pd, drw).Page = page
 	w := strm.Mul(strm.Sub(mbox[2], mbox[0]), "1.25")
 	h := strm.Mul(strm.Sub(mbox[3], mbox[1]), "1.25")
-        decl := "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
-        if !xmlDecl {
-            decl = ""
-        }
+	decl := "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+	if !xmlDecl {
+		decl = ""
+	}
 
 	drw.Write.Out("%s"+
-			"<svg\n"+
-			"   xmlns:svg=\"http://www.w3.org/2000/svg\"\n"+
-			"   xmlns=\"http://www.w3.org/2000/svg\"\n"+
-			"   version=\"1.0\"\n"+
-			"   width=\"%s\"\n"+
-			"   height=\"%s\">\n"+
-			"<g transform=\"matrix(1.25,0,0,-1.25,%s,%s)\">\n",
-                decl,
+		"<svg\n"+
+		"   xmlns:svg=\"http://www.w3.org/2000/svg\"\n"+
+		"   xmlns=\"http://www.w3.org/2000/svg\"\n"+
+		"   version=\"1.0\"\n"+
+		"   width=\"%s\"\n"+
+		"   height=\"%s\">\n"+
+		"<g transform=\"matrix(1.25,0,0,-1.25,%s,%s)\">\n",
+		decl,
 		w, h,
 		strm.Mul(mbox[0], "-1.25"),
 		strm.Mul(mbox[3], "1.25"))

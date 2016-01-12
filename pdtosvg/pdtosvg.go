@@ -9,7 +9,7 @@
 package main
 
 import (
-        "flag"
+	"flag"
 	"fmt"
 	"github.com/raff/pdfreader/pdfread"
 	//"github.com/raff/pdfreader/strm"
@@ -26,30 +26,30 @@ func complain(err string) {
 }
 
 func main() {
-        asHtml := flag.Bool("html", false, "output as html (true) or xml (false)")
-        debug := flag.Bool("debug", false, "debug mode")
-        page := flag.Int("page", 0, "page number")
+	asHtml := flag.Bool("html", false, "output as html (true) or xml (false)")
+	debug := flag.Bool("debug", false, "debug mode")
+	page := flag.Int("page", 0, "page number")
 
-        flag.Parse()
+	flag.Parse()
 
-        if *page < 0 {
-                complain("Bad page!\n\n")
-        }
+	if *page < 0 {
+		complain("Bad page!\n\n")
+	}
 
-        if flag.NArg() != 1 {
-                complain("")
-        }
+	if flag.NArg() != 1 {
+		complain("")
+	}
 
 	pd := pdfread.Load(flag.Arg(0))
 	if pd == nil {
 		complain("Could not load pdf file!\n\n")
 	}
 
-        util.Debug = *debug
+	util.Debug = *debug
 
-        if *asHtml {
-	    fmt.Printf("<!DOCTYPE html><html><body>\n%s</body></html>\n", svg.Page(pd, *page, false))
-        } else {
-	    fmt.Printf("%s", svg.Page(pd, *page, true))
-        }
+	if *asHtml {
+		fmt.Printf("<!DOCTYPE html><html><body>\n%s</body></html>\n", svg.Page(pd, *page, false))
+	} else {
+		fmt.Printf("%s", svg.Page(pd, *page, true))
+	}
 }

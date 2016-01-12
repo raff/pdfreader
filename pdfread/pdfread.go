@@ -12,10 +12,10 @@ import (
 	"compress/zlib"
 	"encoding/ascii85"
 	"encoding/hex"
-	"regexp"
 	"github.com/raff/pdfreader/fancy"
 	"github.com/raff/pdfreader/lzw"
 	"github.com/raff/pdfreader/ps"
+	"regexp"
 )
 
 // limits
@@ -439,9 +439,9 @@ func Load(fn string) *PdfReaderT {
 	r := new(PdfReaderT)
 	r.File = fn
 	r.rdr = fancy.FileReader(fn)
-        if r.rdr == nil {
-                return nil
-        }
+	if r.rdr == nil {
+		return nil
+	}
 	if r.Startxref = xrefStart(r.rdr); r.Startxref == -1 {
 		return nil
 	}

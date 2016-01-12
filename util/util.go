@@ -10,8 +10,8 @@ package util
 
 import (
 	"fmt"
-        "log"
 	"github.com/raff/pdfreader/xchar"
+	"log"
 )
 
 var Debug = false
@@ -122,17 +122,17 @@ func (t *OutT) Out(f string, args ...interface{}) {
 }
 
 func IsHex(c byte) bool {
-    return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
 }
 
 func Log(args ...interface{}) {
-    if Debug {
-        log.Println(args...)
-    }
+	if Debug {
+		log.Println(args...)
+	}
 }
 
 func Logf(f string, args ...interface{}) {
-    if Debug {
-        log.Printf(f, args...)
-    }
+	if Debug {
+		log.Printf(f, args...)
+	}
 }

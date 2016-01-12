@@ -12,8 +12,8 @@ import (
 	"github.com/raff/pdfreader/fancy"
 	"github.com/raff/pdfreader/ps"
 	"github.com/raff/pdfreader/stacks"
-	"github.com/raff/pdfreader/xchar"
 	"github.com/raff/pdfreader/util"
+	"github.com/raff/pdfreader/xchar"
 )
 
 // CMap "interpreter" - this PS btw.
@@ -200,7 +200,7 @@ func Read(rdr fancy.Reader) (r *CharMapperT) {
 			break
 		}
 		if f, ok := Ops[string(t)]; ok {
-                        util.Log(string(t), cm)
+			util.Log(string(t), cm)
 			f(cm)
 		} else {
 			cm.St.Push(t)

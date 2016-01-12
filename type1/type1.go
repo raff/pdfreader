@@ -8,8 +8,8 @@
 package type1
 
 import (
+	"encoding/hex"
 	"fmt"
-        "encoding/hex"
 	"github.com/raff/pdfreader/fancy"
 	"github.com/raff/pdfreader/ps"
 	"github.com/raff/pdfreader/stacks"

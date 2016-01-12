@@ -119,7 +119,7 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 			e.ValueOffset = t.offset
 		}
 
-                util.Logf("tag:%v type:%v count:%v value:%v\n", e.Tag, e.Type, e.Count, e.ValueOffset)
+		util.Logf("tag:%v type:%v count:%v value:%v\n", e.Tag, e.Type, e.Count, e.ValueOffset)
 
 		t.Write(e.Tag)
 		t.Write(e.Type)
@@ -146,18 +146,18 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 	}
 
 	if next {
-                util.Logf("next:%v\n", t.offset)
+		util.Logf("next:%v\n", t.offset)
 		t.Write(uint32(t.offset))
 	} else {
-                util.Log("next:0")
+		util.Log("next:0")
 		t.Write(uint32(0))
 	}
 
-        util.Logf("datalen:%v\n", len(data))
+	util.Logf("datalen:%v\n", len(data))
 	t.w.Write(data)
 
 	if padding {
-                util.Log("padding")
+		util.Log("padding")
 		t.w.Write([]byte{0})
 	}
 }
@@ -207,7 +207,7 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 }
 
 func main() {
-        flag.BoolVar(&util.Debug, "debug", false, "print debug info")
+	flag.BoolVar(&util.Debug, "debug", false, "print debug info")
 	page := flag.Int("page", 0, "page to extract, all pages if missing")
 
 	flag.Parse()
