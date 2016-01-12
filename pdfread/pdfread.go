@@ -439,6 +439,9 @@ func Load(fn string) *PdfReaderT {
 	r := new(PdfReaderT)
 	r.File = fn
 	r.rdr = fancy.FileReader(fn)
+        if r.rdr == nil {
+                return nil
+        }
 	if r.Startxref = xrefStart(r.rdr); r.Startxref == -1 {
 		return nil
 	}
