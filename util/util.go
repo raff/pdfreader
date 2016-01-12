@@ -10,8 +10,11 @@ package util
 
 import (
 	"fmt"
+        "log"
 	"github.com/raff/pdfreader/xchar"
 )
+
+var Debug = false
 
 var wrongUniCode = xchar.Utf8(-1)
 
@@ -104,8 +107,8 @@ type OutT struct {
 	Content []byte
 }
 
-func (t *OutT) Out(f string, args ...string) {
-	p := fmt.Sprintf(f, args)
+func (t *OutT) Out(f string, args ...interface{}) {
+	p := fmt.Sprintf(f, args...)
 	q := len(t.Content)
 	if cap(t.Content)-q < len(p) {
 		n := make([]byte, cap(t.Content)+(len(p)/512+2)*512)
@@ -120,4 +123,16 @@ func (t *OutT) Out(f string, args ...string) {
 
 func IsHex(c byte) bool {
     return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
+}
+
+func Log(args ...interface{}) {
+    if Debug {
+        log.Println(args...)
+    }
+}
+
+func Logf(f string, args ...interface{}) {
+    if Debug {
+        log.Printf(f, args...)
+    }
 }

@@ -106,7 +106,7 @@ func (t *TiffBuilder) AddLong(tag uint16, value uint32) {
 }
 
 func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
-	log.Printf("offset: %08x\n", t.offset)
+	util.Logf("offset: %08x\n", t.offset)
 
 	n := len(t.ifd)
 	t.offset += 2 + (12 * uint32(n))
@@ -115,9 +115,11 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 
 	for _, e := range t.ifd {
 		if e.Tag == TAG_STRIP_OFFSETS {
-			// assume the only data afte the IFD is the image data in one strip
+			// assume the only data after the IFD is the image data in one strip
 			e.ValueOffset = t.offset
 		}
+
+                util.Logf("tag:%v type:%v count:%v value:%v\n", e.Tag, e.Type, e.Count, e.ValueOffset)
 
 		t.Write(e.Tag)
 		t.Write(e.Type)
@@ -144,14 +146,18 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 	}
 
 	if next {
+                util.Logf("next:%v\n", t.offset)
 		t.Write(uint32(t.offset))
 	} else {
+                util.Log("next:0")
 		t.Write(uint32(0))
 	}
 
+        util.Logf("datalen:%v\n", len(data))
 	t.w.Write(data)
 
 	if padding {
+                util.Log("padding")
 		t.w.Write([]byte{0})
 	}
 }
@@ -201,7 +207,9 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 }
 
 func main() {
+        flag.BoolVar(&util.Debug, "debug", false, "print debug info")
 	page := flag.Int("page", 0, "page to extract, all pages if missing")
+
 	flag.Parse()
 
 	if flag.NArg() != 1 {
