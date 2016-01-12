@@ -16,7 +16,14 @@ func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string) {
 
 	if l > 2 {
 		if o[l-2] == ' ' && o[l-1] == 'R' { // reference
+			ref := fmt.Sprintf("<<%s>>", o)
 			o = pd.Obj(o)
+
+			if prefix == "" {
+				prefix = ref
+			} else {
+				prefix += " " + ref
+			}
 		}
 	}
 
