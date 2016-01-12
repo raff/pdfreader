@@ -24,7 +24,7 @@ func complain(err string) {
 	os.Exit(1)
 }
 
-func Page(pd *pdfread.PdfReaderT, page int) []byte {
+func Page(pd *pdfread.PdfReaderT, page int, xmlDecl bool) []byte {
 	pg := pd.Pages()
 	if page >= len(pg) {
 		complain("Page does not exist!\n")
@@ -34,8 +34,12 @@ func Page(pd *pdfread.PdfReaderT, page int) []byte {
 	svgtext.New(pd, drw).Page = page
 	w := strm.Mul(strm.Sub(mbox[2], mbox[0]), "1.25")
 	h := strm.Mul(strm.Sub(mbox[3], mbox[1]), "1.25")
-	drw.Write.Out(
-		"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"+
+        decl := "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+        if !xmlDecl {
+            decl = ""
+        }
+
+	drw.Write.Out("%s"+
 			"<svg\n"+
 			"   xmlns:svg=\"http://www.w3.org/2000/svg\"\n"+
 			"   xmlns=\"http://www.w3.org/2000/svg\"\n"+
@@ -43,6 +47,7 @@ func Page(pd *pdfread.PdfReaderT, page int) []byte {
 			"   width=\"%s\"\n"+
 			"   height=\"%s\">\n"+
 			"<g transform=\"matrix(1.25,0,0,-1.25,%s,%s)\">\n",
+                decl,
 		w, h,
 		strm.Mul(mbox[0], "-1.25"),
 		strm.Mul(mbox[3], "1.25"))
