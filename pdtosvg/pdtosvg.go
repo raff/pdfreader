@@ -9,34 +9,47 @@
 package main
 
 import (
+        "flag"
 	"fmt"
 	"github.com/raff/pdfreader/pdfread"
-	"github.com/raff/pdfreader/strm"
+	//"github.com/raff/pdfreader/strm"
 	"github.com/raff/pdfreader/svg"
+	"github.com/raff/pdfreader/util"
 	"os"
 )
 
 // The program takes a PDF file and converts a page to SVG.
 
 func complain(err string) {
-	fmt.Printf("%susage: pdtosvg foo.pdf [page] >foo.svg\n", err)
+	fmt.Printf("%susage: pdtosvg [--html] [--page=n] foo.pdf >foo.svg\n", err)
 	os.Exit(1)
 }
 
 func main() {
-	if len(os.Args) == 1 || len(os.Args) > 3 {
-		complain("")
-	}
-	page := 0
-	if len(os.Args) > 2 {
-		page = strm.Int(os.Args[2], 1) - 1
-		if page < 0 {
-			complain("Bad page!\n\n")
-		}
-	}
-	pd := pdfread.Load(os.Args[1])
+        asHtml := flag.Bool("html", false, "output as html (true) or xml (false)")
+        debug := flag.Bool("debug", false, "debug mode")
+        page := flag.Int("page", 0, "page number")
+
+        flag.Parse()
+
+        if *page < 0 {
+                complain("Bad page!\n\n")
+        }
+
+        if flag.NArg() != 1 {
+                complain("")
+        }
+
+	pd := pdfread.Load(flag.Arg(0))
 	if pd == nil {
 		complain("Could not load pdf file!\n\n")
 	}
-	fmt.Printf("%s", svg.Page(pd, page))
+
+        util.Debug = *debug
+
+        if *asHtml {
+	    fmt.Printf("<!DOCTYPE html><html><body>\n%s</body></html>\n", svg.Page(pd, *page, false))
+        } else {
+	    fmt.Printf("%s", svg.Page(pd, *page, true))
+        }
 }
