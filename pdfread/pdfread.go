@@ -399,7 +399,7 @@ func (pd *PdfReaderT) Resolve(s []byte) (int, []byte) {
 			}
 			done[o] = 1
 			n, s = pd.object(o)
-			if s[0] >= '0' && s[0] <= '9' && s[len(s)-1] == 'R' {
+		        if len(s) >= 5 && s[0] >= '0' && s[0] <= '9' && s[len(s)-1] == 'R' {
 				n, s = resolve(s)
 			}
 			pd.rcache[string(orig)] = s
