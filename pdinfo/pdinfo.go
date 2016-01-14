@@ -1,5 +1,7 @@
 package main
 
+// The program takes a PDF file as argument and recursively dump the content.
+
 import (
 	"flag"
 	"fmt"
@@ -11,8 +13,6 @@ import (
 var (
 	debugobj = false
 )
-
-// The program takes a PDF file as argument and recursively dump the content.
 
 func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string) {
 	l := len(o)
@@ -35,12 +35,19 @@ func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string) {
 		return
 	}
 
+	/*
+	   if l < 2 {
+	       fmt.Printf("%s%s %s\n", indent, prefix, "<<invalid>>")
+	       return
+	   }
+	*/
+
 	if debugobj {
-		fmt.Printf("%q\n", o)
+		fmt.Println(string(o))
 	}
 
-	switch {
-	case o[0] == '[': // array
+	switch o[0] {
+	case '[': // array
 		a := pdfread.Array(o)
 
 		fmt.Printf("%s%s %s\n", indent, prefix, "[")
@@ -53,7 +60,7 @@ func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string) {
 		indent = indent[2:]
 		fmt.Printf("%s]\n", indent)
 
-	case o[0] == '<' && o[1] == '<': // dictionary
+	case '<': // dictionary
 		d := pdfread.Dictionary(o)
 
 		fmt.Printf("%s%s %s\n", indent, prefix, "{")
@@ -69,6 +76,9 @@ func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string) {
 
 		indent = indent[2:]
 		fmt.Printf("%s}\n", indent)
+
+	case '/': // symbol
+		fmt.Printf("%s%s %s\n", indent, prefix, util.Unescape(o))
 
 	default:
 		fmt.Printf("%s%s %s\n", indent, prefix, string(o))
