@@ -91,6 +91,9 @@ func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel 
 	case '/': // symbol
 		fmt.Printf("%s%s %s\n", indent, prefix, util.Unescape(o))
 
+	case '(': // string
+		fmt.Printf("%s%s %q\n", indent, prefix, util.String(o))
+
 	default:
 		fmt.Printf("%s%s %s\n", indent, prefix, string(o))
 	}
