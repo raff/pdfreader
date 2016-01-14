@@ -9,14 +9,16 @@
 package pdfread
 
 import (
+	"bytes"
 	"compress/zlib"
 	"encoding/ascii85"
 	"encoding/hex"
+	"regexp"
+
 	"github.com/raff/pdfreader/fancy"
 	"github.com/raff/pdfreader/lzw"
 	"github.com/raff/pdfreader/ps"
 	"github.com/raff/pdfreader/util"
-	"regexp"
 )
 
 // limits
@@ -32,6 +34,7 @@ type DictionaryT map[string][]byte
 
 type PdfReaderT struct {
 	File      string            // name of the file
+	Version   string            // PDF version
 	rdr       fancy.Reader      // reader for the contents
 	Startxref int               // starting of xref table
 	Xref      map[int]int       // "pointers" of the xref table
@@ -608,6 +611,21 @@ func Load(fn string) *PdfReaderT {
 		util.Log(fn, "FileReader error")
 		return nil
 	}
+
+	v := make([]byte, 16)
+	r.rdr.ReadAt(v, 0)
+
+	if v[0] != '%' || v[1] != 'P' || v[2] != 'D' || v[3] != 'F' {
+		util.Log(string(v), "not a PDF")
+		return nil
+	}
+
+	x := bytes.IndexByte(v, '\r')
+	if x > 0 {
+		v = v[:x]
+	}
+	r.Version = string(v)
+
 	if r.Startxref = xrefStart(r.rdr); r.Startxref == -1 {
 		util.Log(fn, "xrefStart error")
 		return nil
