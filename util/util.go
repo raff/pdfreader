@@ -9,14 +9,21 @@
 package util
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/raff/pdfreader/xchar"
 	"log"
+	"regexp"
+	"strconv"
+
+	"github.com/raff/pdfreader/xchar"
 )
 
-var Debug = false
+var (
+	Debug = false
 
-var wrongUniCode = xchar.Utf8(-1)
+	wrongUniCode = xchar.Utf8(-1)
+	hexRE        = regexp.MustCompile(`#[A-F0-9]{2}`)
+)
 
 // util.Bytes() is a dup of string.Bytes()
 func Bytes(a string) []byte {
@@ -25,6 +32,89 @@ func Bytes(a string) []byte {
 		r[k] = byte(a[k])
 	}
 	return r
+}
+
+// util.Unescape() convert #XX in input back to char
+func Unescape(b []byte) string {
+	return hexRE.ReplaceAllStringFunc(string(b), func(p string) string {
+		v, _ := strconv.ParseUint(p[1:], 16, 8)
+		return string([]byte{byte(v)})
+	})
+}
+
+func ApplyPNGPredictor(pred, colors, columns, bitspercomponent int, data []byte) []byte {
+	if bitspercomponent != 8 {
+		// unsupported
+		Log("Unsupported bitspercomponent", bitspercomponent)
+		return nil
+	}
+
+	nbytes := colors * columns * bitspercomponent / 8
+	buf := []byte{}
+
+	line0 := bytes.Repeat([]byte{0}, columns)
+
+	for i := 0; i < len(data); i += nbytes {
+		ft := data[i]
+
+		i += 1
+
+		line1 := data[i : i+nbytes]
+		line2 := []byte{}
+
+		switch ft {
+		case 0:
+			// PNG none
+			line2 = append(line2, line1...)
+
+		case 1:
+			// PNG sub (UNTESTED)
+			c := byte(0)
+
+			for _, b := range line1 {
+				c = (c + b) & 255
+				line2 = append(line2, c)
+			}
+
+		case 2:
+			// PNG up
+			l := len(line0)
+			if len(line1) < l {
+				l = len(line1)
+			}
+
+			for i := 0; i < l; i++ {
+				a, b := line0[i], line1[i]
+				c := (a + b) & 255
+				line2 = append(line2, c)
+			}
+
+		case 3:
+			// PNG average (UNTESTED)
+			c := byte(0)
+
+			l := len(line0)
+			if len(line1) < l {
+				l = len(line1)
+			}
+
+			for i := 0; i < l; i++ {
+				a, b := line0[i], line1[i]
+				c := ((c + a + b) / 2) & 255
+				line2 = append(line2, c)
+			}
+
+		default:
+			// unsupported
+			Log("Unsupported predictor (ft)", ft)
+			return nil
+		}
+
+		buf = append(buf, line2...)
+		line0 = line2
+	}
+
+	return buf
 }
 
 func JoinStrings(a []string, c byte) []byte {
