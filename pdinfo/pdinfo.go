@@ -12,9 +12,11 @@ import (
 
 var (
 	debugobj = false
+	maxlevel = 0
 )
 
-func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string) {
+func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int) {
+	maxlevel -= 1
 	l := len(o)
 
 	if l > 2 {
@@ -53,8 +55,13 @@ func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string) {
 		fmt.Printf("%s%s %s\n", indent, prefix, "[")
 		indent += "  "
 
-		for i, v := range a {
-			printobj(pd, v, indent, fmt.Sprintf("%d:", i))
+		if maxlevel < 0 {
+			fmt.Printf("%s<<more>>\n", indent)
+		} else {
+			for i, v := range a {
+
+				printobj(pd, v, indent, fmt.Sprintf("%d:", i), maxlevel)
+			}
 		}
 
 		indent = indent[2:]
@@ -66,11 +73,15 @@ func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string) {
 		fmt.Printf("%s%s %s\n", indent, prefix, "{")
 		indent += "  "
 
-		for k, v := range d {
-			if k == "/Parent" { // backreference - don't follow
-				fmt.Printf("%s%s <<%s>>\n", indent, k, string(v))
-			} else {
-				printobj(pd, v, indent, k)
+		if maxlevel < 0 {
+			fmt.Printf("%s<<more>>\n", indent)
+		} else {
+			for k, v := range d {
+				if k == "/Parent" { // backreference - don't follow
+					fmt.Printf("%s%s <<%s>>\n", indent, k, string(v))
+				} else {
+					printobj(pd, v, indent, k, maxlevel)
+				}
 			}
 		}
 
@@ -88,6 +99,7 @@ func printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string) {
 func main() {
 	flag.BoolVar(&util.Debug, "debug", false, "enable debug logging")
 	flag.BoolVar(&debugobj, "dump", false, "dump object content")
+	flag.IntVar(&maxlevel, "levels", 5, "maximum number of levels")
 
 	flag.Parse()
 
@@ -110,7 +122,7 @@ func main() {
 
 		root := pd.Trailer["/Root"]
 
-		printobj(pd, root, "", "/Root")
+		printobj(pd, root, "", "/Root", maxlevel)
 		fmt.Println()
 	}
 }
