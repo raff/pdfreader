@@ -12,13 +12,12 @@ import (
 )
 
 var (
-	debugobj = false
 	maxlevel = 0
 )
 
 func main() {
 	flag.BoolVar(&util.Debug, "debug", false, "enable debug logging")
-	flag.BoolVar(&debugobj, "dump", false, "dump object content")
+	flag.BoolVar(&pdutil.Debugobj, "dump", false, "dump object content")
 	flag.IntVar(&maxlevel, "levels", 5, "maximum number of levels")
 
 	flag.Parse()
@@ -32,6 +31,9 @@ func main() {
 			fmt.Println()
 			continue
 		}
+
+		fmt.Println(pd.Version)
+		fmt.Println()
 
 		fmt.Println("Trailer {")
 		for k, v := range pd.Trailer {
