@@ -10,10 +10,13 @@ package util
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"regexp"
 	"strconv"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/raff/pdfreader/xchar"
 )
@@ -34,12 +37,76 @@ func Bytes(a string) []byte {
 	return r
 }
 
-// util.Unescape() convert #XX in input back to char
+// util.Unescape() convert #XX in input back to char.
+// this should only be used for name objects
 func Unescape(b []byte) string {
 	return hexRE.ReplaceAllStringFunc(string(b), func(p string) string {
 		v, _ := strconv.ParseUint(p[1:], 16, 8)
 		return string([]byte{byte(v)})
 	})
+}
+
+func String(s []byte) string {
+	l := len(s)
+	if l == 0 {
+		return ""
+	}
+
+	if s[0] == '<' { // this is a hex encoded string
+		if s[l-1] != ')' {
+			Log("invalid hex string", string(s))
+			return ""
+		}
+
+		s = s[1 : l-1]
+
+		if (len(s) % 2) == 1 { // odd length
+			s = append(s, '0') // they saved a full character here!
+		}
+
+		if b, err := hex.DecodeString(string(s)); err != nil {
+			Log("invalid hex string", string(s))
+			return ""
+		} else {
+			return string(b)
+		}
+	}
+
+	if s[0] == '(' {
+		if s[l-1] != ')' {
+			Log("invalid string", string(s))
+			return ""
+		}
+
+		s = s[1 : l-1]
+
+		// if first 2 chars are 0xFEFF, this is a UTF16 encoded string
+
+		if len(s) > 2 && s[0] == 0xFE && s[1] == 0xFF { // Unicode string (UTF-16BE)
+			ucodes := []uint16{}
+
+			for i := 0; i < len(s); i += 2 {
+				u := uint16(s[i+0])*256 + uint16(s[i+1])
+				ucodes = append(ucodes, u)
+			}
+
+			runes := utf16.Decode(ucodes)
+			cbuf := make([]byte, 4)
+			buf := []byte{}
+
+			for _, r := range runes {
+				utf8.EncodeRune(cbuf, r)
+				buf = append(buf, cbuf...)
+			}
+
+			// do I still have escape sequences in here ?
+			return string(buf)
+		}
+
+		// strings here can contain \escaped sequences
+	}
+
+	return string(s)
 }
 
 func ApplyPNGPredictor(pred, colors, columns, bitspercomponent int, data []byte) []byte {
