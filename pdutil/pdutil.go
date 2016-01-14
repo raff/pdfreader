@@ -1,10 +1,14 @@
 package pdutil
 
 import (
-        "fmt"
+	"fmt"
 
 	"github.com/raff/pdfreader/pdfread"
 	"github.com/raff/pdfreader/util"
+)
+
+var (
+	Debugobj = false
 )
 
 func Printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int) {
@@ -29,11 +33,9 @@ func Printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel 
 		return
 	}
 
-	/*
-	if debugobj {
-		fmt.Println(string(o))
+	if Debugobj {
+		fmt.Printf("%% %s", o)
 	}
-        */
 
 	switch o[0] {
 	case '[': // array
@@ -84,4 +86,20 @@ func Printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel 
 	default:
 		fmt.Printf("%s%s %s\n", indent, prefix, string(o))
 	}
+}
+
+func Printdic(pd *pdfread.PdfReaderT, d pdfread.DictionaryT, indent, prefix string, maxlevel int) {
+	fmt.Printf("%s%s %s\n", indent, prefix, "{")
+	indent += "  "
+
+	for k, v := range d {
+		if k == "/Parent" { // backreference - don't follow
+			fmt.Printf("%s%s <<%s>>\n", indent, k, string(v))
+		} else {
+			Printobj(pd, v, indent, k, maxlevel)
+		}
+	}
+
+	indent = indent[2:]
+	fmt.Printf("%s}\n", indent)
 }
