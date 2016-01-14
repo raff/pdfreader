@@ -15,6 +15,7 @@ import (
 	"github.com/raff/pdfreader/fancy"
 	"github.com/raff/pdfreader/lzw"
 	"github.com/raff/pdfreader/ps"
+	"github.com/raff/pdfreader/util"
 	"regexp"
 )
 
@@ -74,6 +75,22 @@ func num(n []byte) (r int) {
 	return r * mul
 }
 
+func numdef(n []byte, defn int) int {
+	if n == nil {
+		return defn
+	} else {
+		return num(n)
+	}
+}
+
+func bnum(n []byte) (ret int) {
+	for _, b := range n {
+		ret = (ret << 8) + int(b)
+	}
+
+	return
+}
+
 func refToken(f fancy.Reader) ([]byte, int64) {
 	tok, p := ps.Token(f)
 	if len(tok) > 0 && tok[0] >= '0' && tok[0] <= '9' {
@@ -89,7 +106,7 @@ func refToken(f fancy.Reader) ([]byte, int64) {
 	return tok, p
 }
 
-func tupel(f fancy.Reader, count int) [][]byte {
+func tuple(f fancy.Reader, count int) [][]byte {
 	r := make([][]byte, count)
 	for i := 0; i < count; i++ {
 		r[i], _ = ps.Token(f)
@@ -97,7 +114,7 @@ func tupel(f fancy.Reader, count int) [][]byte {
 	return r
 }
 
-var xref = regexp.MustCompile(
+var startxref = regexp.MustCompile(
 	"startxref[\t ]*(\r?\n|\r)[\t ]*([0-9]+)[\t ]*(\r?\n|\r)[\t ]*%%EOF")
 
 // xrefStart() queries the start of the xref-table in a PDF file.
@@ -105,11 +122,11 @@ func xrefStart(f fancy.Reader) int {
 	s := int(f.Size())
 	pdf := make([]byte, min(s, 1024))
 	f.ReadAt(pdf, int64(max(0, s-1024)))
-	ps := xref.FindAll(pdf, -1)
+	ps := startxref.FindAll(pdf, -1)
 	if ps == nil {
 		return -1
 	}
-	return num(xref.FindSubmatch(ps[len(ps)-1])[2])
+	return num(startxref.FindSubmatch(ps[len(ps)-1])[2])
 }
 
 // xrefSkip() queries the start of the trailer for a (partial) xref-table.
@@ -180,10 +197,19 @@ func Array(s []byte) [][]byte {
 	return r[0:b]
 }
 
-// xrefRead() reads the xref table(s) of a PDF file. This is not recursive
+func ForcedArray(s []byte) [][]byte {
+	if s[0] != '[' {
+		s = append([]byte{'['}, s...)
+		s = append(s, ']')
+	}
+	return Array(s)
+}
+
+// xrefReadTable() reads the xref table(s) of a PDF file. This is not recursive
 // in favour of not to have to keep track of already used starting points
 // for xrefs.
-func xrefRead(f fancy.Reader, p int) map[int]int {
+func xrefReadTable(f fancy.Reader, p int) (map[int]int, DictionaryT) {
+	var trailer DictionaryT
 	var back [MAX_PDF_UPDATES]int
 	b := 0
 	s := _Bytes
@@ -194,9 +220,13 @@ func xrefRead(f fancy.Reader, p int) map[int]int {
 		f.Seek(int64(p), 0)
 		s, _ = ps.Token(f)
 		if string(s) != "trailer" {
-			return nil
+			util.Log("no trailer / xref table")
+			return nil, nil
 		}
 		s, _ = ps.Token(f)
+		if trailer == nil {
+			trailer = Dictionary(s)
+		}
 		s, ok = Dictionary(s)["/Prev"]
 		p = num(s)
 	}
@@ -206,7 +236,7 @@ func xrefRead(f fancy.Reader, p int) map[int]int {
 		f.Seek(int64(back[b]), 0)
 		ps.Token(f) // skip "xref"
 		for {
-			m := tupel(f, 2)
+			m := tuple(f, 2)
 			if string(m[0]) == "trailer" {
 				break
 			}
@@ -223,7 +253,111 @@ func xrefRead(f fancy.Reader, p int) map[int]int {
 			}
 		}
 	}
-	return r
+	return r, trailer
+}
+
+// xrefReadStream() reads the xref stream(s) of a PDF file. This is not recursive
+// in favour of not to have to keep track of already used starting points
+// for xrefs.
+func xrefReadStream(f fancy.Reader, p int) (xr map[int]int, r [][2]int, trailer DictionaryT) {
+	s := _Bytes
+
+	xr = map[int]int{}
+	r = [][2]int{}
+
+	for ok := true; ok; {
+		f.Seek(int64(p), 0)
+		ps.Token(f) // skip "xref"
+
+		//for {
+		m := tuple(f, 2)
+		if string(m[1]) != "obj" {
+			util.Logf("unexpected %q\n", m)
+			return nil, nil, nil
+		}
+
+		s, _ = ps.Token(f)
+		dic := Dictionary(s)
+
+		if trailer == nil {
+			trailer = dic
+		}
+
+		s, ok = dic["/Prev"]
+		p = num(s)
+
+		s, _ = ps.Token(f)
+		if string(s) != "stream" {
+			util.Log("not a stream", s)
+			return nil, nil, nil
+		}
+		ps.SkipLE(f)
+
+		for k, v := range dic {
+			util.Logf("%s %s", k, v)
+		}
+
+		size := num(dic["/Size"])
+		index := []int{0, size}
+
+		if _, ok := dic["/Index"]; ok {
+			a := Array(dic["/Index"])
+			index[0] = num(a[0])
+			index[1] = num(a[1])
+
+			// can len(index) be != 2 ?
+		}
+
+		l := num(dic["/Length"])
+		xref := f.Slice(l)
+
+		w := Array(dic["/W"])
+		if len(w) != 3 {
+			util.Log("unexpected /W", w)
+		}
+
+		fl1 := num(w[0])
+		fl2 := num(w[1])
+		fl3 := num(w[2])
+
+		width := fl1 + fl2 + fl3
+
+		xref = decodeStream(dic, xref)
+
+		s, _ = ps.Token(f) // endstream
+		s, _ = ps.Token(f) // endobj
+
+		pos := index[0]
+
+		for i := 0; i < len(xref); i += width {
+			ent := xref[i : i+width]
+			f1 := bnum(ent[0:fl1])
+			f2 := bnum(ent[fl1 : fl1+fl2])
+			f3 := bnum(ent[fl1+fl2:])
+
+			switch f1 {
+			case 0:
+				// free object
+				util.Log("free", f2, f3)
+				// delete(r, f2)
+
+			case 1:
+				// regular object
+				util.Log("ref", pos, f3, f2)
+				xr[pos] = f2
+
+			case 2:
+				// compressed object
+				util.Log("cref", pos, f2, f3)
+				r = append(r, [2]int{f2, f3})
+			}
+
+			pos += 1
+		}
+		//}
+	}
+
+	return xr, r, trailer
 }
 
 // object() extracts the top informations of a PDF "object". For streams
@@ -235,7 +369,7 @@ func (pd *PdfReaderT) object(o int) (int, []byte) {
 		return -1, _Bytes
 	}
 	pd.rdr.Seek(int64(p), 0)
-	m := tupel(pd.rdr, 3)
+	m := tuple(pd.rdr, 3)
 	if num(m[0]) != o {
 		return -1, _Bytes
 	}
@@ -385,16 +519,24 @@ func (pd *PdfReaderT) Stream(reference []byte) (DictionaryT, []byte) {
 // pd.DecodedStream() returns decoded contents of a stream.
 func (pd *PdfReaderT) DecodedStream(reference []byte) (DictionaryT, []byte) {
 	dic, data := pd.Stream(reference)
+	return dic, decodeStream(dic, data)
+}
+
+func decodeStream(dic DictionaryT, data []byte) []byte {
 	if f, ok := dic["/Filter"]; ok {
-		filter := pd.ForcedArray(f)
+		filter := ForcedArray(f)
 		var decos [][]byte
-		if d, ok := dic["/DecodeParams"]; ok {
-			decos = pd.ForcedArray(d)
+		if d, ok := dic["/DecodeParms"]; ok {
+			decos = ForcedArray(d)
 		} else {
 			decos = make([][]byte, len(filter))
 		}
+
 		for ff := range filter {
-			deco := pd.Dic(decos[ff])
+			// XXX: if there are multiple filters but only one DecodeParams,
+			//      it should be used for all filters
+
+			deco := Dictionary(decos[ff])
 			switch string(filter[ff]) {
 			case "/FlateDecode":
 				data = fancy.ReadAndClose(zlib.NewReader(fancy.SliceReader(data)))
@@ -402,7 +544,7 @@ func (pd *PdfReaderT) DecodedStream(reference []byte) (DictionaryT, []byte) {
 				early := true
 				if deco != nil {
 					if s, ok := deco["/EarlyChange"]; ok {
-						early = pd.Num(s) == 1
+						early = num(s) == 1
 					}
 				}
 				data = lzw.Decode(data, early)
@@ -420,9 +562,30 @@ func (pd *PdfReaderT) DecodedStream(reference []byte) (DictionaryT, []byte) {
 			default:
 				data = []byte{}
 			}
+
+			if s, ok := deco["/Predictor"]; ok {
+				pred := num(s)
+
+				switch {
+				case pred == 1:
+					// no predictor
+
+				case pred > 10:
+					colors := numdef(deco["/Colors"], 1)
+					columns := numdef(deco["/Columns"], 1)
+					bitspercomponent := numdef(deco["/BitsPerComponent"], 8)
+
+					util.Log("applying predictor", pred, colors, columns, bitspercomponent)
+					data = util.ApplyPNGPredictor(pred, colors, columns, bitspercomponent, data)
+
+				default:
+					util.Log("Unsupported predictor", pred)
+					return nil
+				}
+			}
 		}
 	}
-	return dic, data
+	return data
 }
 
 // pd.PageFonts() returns references to the fonts defined for a page.
@@ -436,29 +599,86 @@ func (pd *PdfReaderT) PageFonts(page []byte) DictionaryT {
 
 // Load() loads a PDF file of a given name.
 func Load(fn string) *PdfReaderT {
+	var rr [][2]int // list of entries to resolve
+
 	r := new(PdfReaderT)
 	r.File = fn
 	r.rdr = fancy.FileReader(fn)
 	if r.rdr == nil {
+		util.Log(fn, "FileReader error")
 		return nil
 	}
 	if r.Startxref = xrefStart(r.rdr); r.Startxref == -1 {
+		util.Log(fn, "xrefStart error")
 		return nil
 	}
-	if r.Xref = xrefRead(r.rdr, r.Startxref); r.Xref == nil {
+
+	if r.Xref, r.Trailer = xrefReadTable(r.rdr, r.Startxref); r.Xref == nil {
+		r.Xref, rr, r.Trailer = xrefReadStream(r.rdr, r.Startxref)
+	}
+
+	if r.Xref == nil {
+		util.Log(fn, "xrefRead error")
 		return nil
 	}
-	r.rdr.Seek(int64(xrefSkip(r.rdr, r.Startxref)), 0)
-	s, _ := ps.Token(r.rdr)
-	if string(s) != "trailer" {
-		return nil
+
+	if r.Trailer == nil {
+		r.rdr.Seek(int64(xrefSkip(r.rdr, r.Startxref)), 0)
+
+		s, _ := ps.Token(r.rdr)
+		if string(s) != "trailer" {
+			util.Log(fn, "no trailer")
+			return nil
+		}
+		s, _ = ps.Token(r.rdr)
+		if r.Trailer = Dictionary(s); r.Trailer == nil {
+			util.Log(fn, "no trailer dictionary")
+			return nil
+		}
 	}
-	s, _ = ps.Token(r.rdr)
-	if r.Trailer = Dictionary(s); r.Trailer == nil {
-		return nil
-	}
+
 	r.rcache = make(map[string][]byte)
 	r.rncache = make(map[string]int)
 	r.dicache = make(map[string]DictionaryT)
+
+	if rr != nil {
+		curr := -1
+
+		var dic DictionaryT
+		var s []byte
+
+		for _, v := range rr {
+			o, i := v[0], v[1]
+
+			if o != curr {
+				curr = o
+
+				dic, s = r.DecodedStream(util.MakeRef(curr))
+
+				first := num(dic["/First"])
+				n := num(dic["/N"])
+
+				rdr := fancy.SliceReader(s)
+
+				p := tuple(rdr, n*2)
+
+				util.Log("Object-Stream", curr)
+				for i := 0; i < len(p); i += 2 {
+					oo := num(p[i+0])
+					offs := num(p[i+1])
+
+					util.Log(oo, first+offs)
+
+					rdr.Seek(int64(first+offs), 0)
+					s, _ := ps.Token(rdr)
+					util.Log(string(s))
+				}
+
+			}
+
+			util.Log(o, i)
+		}
+	}
+
 	return r
 }
