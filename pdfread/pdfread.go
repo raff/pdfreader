@@ -672,6 +672,10 @@ func Load(fn string) *PdfReaderT {
 					rdr.Seek(int64(first+offs), 0)
 					s, _ := ps.Token(rdr)
 					util.Log(string(s))
+
+					ref := string(util.MakeRef(oo))
+					r.rcache[ref] = s
+					r.rncache[ref] = -1
 				}
 
 			}
