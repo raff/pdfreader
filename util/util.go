@@ -117,6 +117,10 @@ func ApplyPNGPredictor(pred, colors, columns, bitspercomponent int, data []byte)
 	return buf
 }
 
+func MakeRef(o int) []byte {
+	return []byte(fmt.Sprintf("%d 0 R", o))
+}
+
 func JoinStrings(a []string, c byte) []byte {
 	if a == nil || len(a) == 0 {
 		return []byte{}
