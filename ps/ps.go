@@ -10,6 +10,8 @@ package ps
 
 import (
 	"encoding/hex"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/raff/pdfreader/fancy"
 )
@@ -140,12 +142,38 @@ again:
 
 func String(s []byte) []byte {
 	if s[0] == '<' {
+		if (len(s) % 2) == 1 { // odd length
+			s = append(s, '0') // they saved a full character here!
+		}
 		r, _ := hex.DecodeString(string(s[1 : len(s)-1]))
 		return r
 	}
 	if s[0] != '(' {
 		return s
 	}
+
+	// if first 2 chars are 0xFEFF, this is a UTF16 encoded string
+	if len(s) > 2 && s[0] == 0xFE && s[1] == 0xFF { // Unicode string (UTF-16BE)
+		ucodes := []uint16{}
+
+		for i := 2; i < len(s); i += 2 {
+			u := uint16(s[i+0])*256 + uint16(s[i+1])
+			ucodes = append(ucodes, u)
+		}
+
+		runes := utf16.Decode(ucodes)
+		cbuf := make([]byte, 4)
+		buf := []byte{}
+
+		for _, r := range runes {
+			n := utf8.EncodeRune(cbuf, r)
+			buf = append(buf, cbuf[:n]...)
+		}
+
+		// do I still have escape sequences in here ?
+		return buf
+	}
+
 	r := make([]byte, len(s))
 	q := 0
 	for p := 1; p < len(s)-1; p++ {
