@@ -21,6 +21,8 @@ type Reader interface {
 	ReadByte() (c byte, err error)
 	UnreadByte() error
 	Size() int64
+
+	Close() error
 }
 
 // ------------------------------------------------------------------
@@ -153,6 +155,14 @@ func (sr *SecReaderT) ReadBytes(delim byte) ([]byte, error) {
 	return bufio.NewReader(sr).ReadBytes(delim)
 }
 
+func (sr *SecReaderT) Close() error {
+	if closer, ok := sr.f.(io.Closer); ok {
+		return closer.Close()
+	}
+
+	return nil
+}
+
 func SecReader(f io.ReaderAt, size int64) Reader {
 	sr := new(SecReaderT)
 	sr.f = f
@@ -227,6 +237,10 @@ func (sl *SliceReaderT) Slice(n int) []byte {
 // The thing here is only (!) for convenience.
 func (sl *SliceReaderT) ReadBytes(delim byte) ([]byte, error) {
 	return bufio.NewReader(sl).ReadBytes(delim)
+}
+
+func (sl *SliceReaderT) Close() error {
+	return nil
 }
 
 func SliceReader(bin []byte) Reader {
