@@ -17,23 +17,19 @@ import (
 	"strconv"
 	"unicode/utf16"
 	"unicode/utf8"
-
-	"github.com/raff/pdfreader/xchar"
 )
 
 var (
 	Debug = false
 
-	wrongUniCode = xchar.Utf8(-1)
-	hexRE        = regexp.MustCompile(`#[A-F0-9]{2}`)
+	wrongUniCode = "\uFFFD" // utf8.RuneError
+	hexRE        = regexp.MustCompile(`#[a-fA-F0-9]{2}`)
 )
 
 // util.Bytes() is a dup of string.Bytes()
 func Bytes(a string) []byte {
 	r := make([]byte, len(a))
-	for k := 0; k < len(a); k++ {
-		r[k] = byte(a[k])
-	}
+	copy(r, []byte(a))
 	return r
 }
 
@@ -81,7 +77,6 @@ func String(s []byte) string {
 		s = s[1 : l-1]
 
 		// if first 2 chars are 0xFEFF, this is a UTF16 encoded string
-
 		if len(s) > 2 && s[0] == 0xFE && s[1] == 0xFF { // Unicode string (UTF-16BE)
 			ucodes := []uint16{}
 
