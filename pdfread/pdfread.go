@@ -617,6 +617,7 @@ func Load(fn string) *PdfReaderT {
 
 	if v[0] != '%' || v[1] != 'P' || v[2] != 'D' || v[3] != 'F' {
 		util.Log(string(v), "not a PDF")
+		r.rdr.Close()
 		return nil
 	}
 
@@ -628,6 +629,7 @@ func Load(fn string) *PdfReaderT {
 
 	if r.Startxref = xrefStart(r.rdr); r.Startxref == -1 {
 		util.Log(fn, "xrefStart error")
+		r.rdr.Close()
 		return nil
 	}
 
@@ -637,6 +639,7 @@ func Load(fn string) *PdfReaderT {
 
 	if r.Xref == nil {
 		util.Log(fn, "xrefRead error")
+		r.rdr.Close()
 		return nil
 	}
 
@@ -646,11 +649,13 @@ func Load(fn string) *PdfReaderT {
 		s, _ := ps.Token(r.rdr)
 		if string(s) != "trailer" {
 			util.Log(fn, "no trailer")
+			r.rdr.Close()
 			return nil
 		}
 		s, _ = ps.Token(r.rdr)
 		if r.Trailer = Dictionary(s); r.Trailer == nil {
 			util.Log(fn, "no trailer dictionary")
+			r.rdr.Close()
 			return nil
 		}
 	}
