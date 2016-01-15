@@ -82,7 +82,7 @@ func (sr *SecReaderT) ReadAt(buf []byte, pos int64) (n int, err error) {
 		return 0, io.EOF
 	}
 	b, p := sr.access(pos)
-	for ; p < _SECTOR_SIZE && n < len(buf); p++ {
+	for ; p < _SECTOR_SIZE && n < len(buf) && p < len(b); p++ {
 		buf[n] = b[p]
 		n++
 	}
@@ -92,7 +92,7 @@ func (sr *SecReaderT) ReadAt(buf []byte, pos int64) (n int, err error) {
 	}
 	if len(buf)-n > 0 {
 		b, p = sr.access(pos + int64(n))
-		for ; n < len(buf); p++ {
+		for ; n < len(buf) && p < len(b); p++ {
 			buf[n] = b[p]
 			n++
 		}
