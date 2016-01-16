@@ -600,6 +600,21 @@ func (pd *PdfReaderT) PageFonts(page []byte) DictionaryT {
 	return pd.Dic(fonts)
 }
 
+// pd.Close() closes the underlying file and releases all resources
+func (pd *PdfReaderT) Close() {
+	pd.rdr.Close()
+	pd.File = ""
+	pd.Version = ""
+	pd.rdr = nil
+	pd.Startxref = -1
+	pd.Xref = nil
+	pd.Trailer = nil
+	pd.rcache = nil
+	pd.rncache = nil
+	pd.dicache = nil
+	pd.pages = nil
+}
+
 // Load() loads a PDF file of a given name.
 func Load(fn string) *PdfReaderT {
 	var rr [][2]int // list of entries to resolve
