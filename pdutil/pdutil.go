@@ -2,6 +2,7 @@ package pdutil
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/raff/pdfreader/pdfread"
 	"github.com/raff/pdfreader/util"
@@ -11,7 +12,7 @@ var (
 	Debugobj = false
 )
 
-func Printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int) {
+func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int) {
 	maxlevel -= 1
 	l := len(o)
 
@@ -29,77 +30,77 @@ func Printobj(pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel 
 	}
 
 	if l == 0 {
-		fmt.Printf("%s%s %s\n", indent, prefix, "<<empty>>")
+		fmt.Fprintf(w, "%s%s %s\n", indent, prefix, "<<empty>>")
 		return
 	}
 
 	if Debugobj {
-		fmt.Printf("%% %s", o)
+		fmt.Fprintf(w, "%% %s", o)
 	}
 
 	switch o[0] {
 	case '[': // array
 		a := pdfread.Array(o)
 
-		fmt.Printf("%s%s %s\n", indent, prefix, "[")
+		fmt.Fprintf(w, "%s%s %s\n", indent, prefix, "[")
 		indent += "  "
 
 		if maxlevel < 0 {
-			fmt.Printf("%s<<more>>\n", indent)
+			fmt.Fprintf(w, "%s<<more>>\n", indent)
 		} else {
 			for i, v := range a {
 
-				Printobj(pd, v, indent, fmt.Sprintf("%d:", i), maxlevel)
+				Printobj(w, pd, v, indent, fmt.Sprintf("%d:", i), maxlevel)
 			}
 		}
 
 		indent = indent[2:]
-		fmt.Printf("%s]\n", indent)
+		fmt.Fprintf(w, "%s]\n", indent)
 
 	case '<': // dictionary
 		d := pdfread.Dictionary(o)
 
-		fmt.Printf("%s%s %s\n", indent, prefix, "{")
+		fmt.Fprintf(w, "%s%s %s\n", indent, prefix, "{")
 		indent += "  "
 
 		if maxlevel < 0 {
-			fmt.Printf("%s<<more>>\n", indent)
+			fmt.Fprintf(w, "%s<<more>>\n", indent)
 		} else {
 			for k, v := range d {
 				if k == "/Parent" { // backreference - don't follow
-					fmt.Printf("%s%s <<%s>>\n", indent, k, string(v))
+					fmt.Fprintf(w, "%s%s <<%s>>\n", indent, k, string(v))
 				} else {
-					Printobj(pd, v, indent, k, maxlevel)
+					Printobj(w, pd, v, indent, k, maxlevel)
 				}
 			}
 		}
 
 		indent = indent[2:]
-		fmt.Printf("%s}\n", indent)
+		fmt.Fprintf(w, "%s}\n", indent)
 
 	case '/': // symbol
-		fmt.Printf("%s%s %s\n", indent, prefix, util.Unescape(o))
+		fmt.Fprintf(w, "%s%s %s\n", indent, prefix, util.Unescape(o))
 
 	case '(': // string
-		fmt.Printf("%s%s %q\n", indent, prefix, util.String(o))
+		fmt.Fprintf(w, "%s%s %q\n", indent, prefix, util.String(o))
 
 	default:
-		fmt.Printf("%s%s %s\n", indent, prefix, string(o))
+		fmt.Fprintf(w, "%s%s %s\n", indent, prefix, string(o))
 	}
 }
 
-func Printdic(pd *pdfread.PdfReaderT, d pdfread.DictionaryT, indent, prefix string, maxlevel int) {
-	fmt.Printf("%s%s %s\n", indent, prefix, "{")
+func Printdic(w io.Writer, pd *pdfread.PdfReaderT, d pdfread.DictionaryT, indent, prefix string, maxlevel int) {
+	fmt.Fprintf(w, "%s%s %s\n", indent, prefix, "{")
 	indent += "  "
 
 	for k, v := range d {
 		if k == "/Parent" { // backreference - don't follow
-			fmt.Printf("%s%s <<%s>>\n", indent, k, string(v))
+			fmt.Fprintf(w, "%s%s <<%s>>\n", indent, k, string(v))
 		} else {
-			Printobj(pd, v, indent, k, maxlevel)
+			Printobj(w, pd, v, indent, k, maxlevel)
 		}
 	}
 
 	indent = indent[2:]
-	fmt.Printf("%s}\n", indent)
+	fmt.Fprintf(w, "%s}\n", indent)
 }
