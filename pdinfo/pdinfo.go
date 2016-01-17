@@ -5,6 +5,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/raff/pdfreader/pdfread"
 	"github.com/raff/pdfreader/pdutil"
@@ -44,7 +45,7 @@ func main() {
 
 		root := pd.Trailer["/Root"]
 
-		pdutil.Printobj(pd, root, "", "/Root", maxlevel)
+		pdutil.Printobj(os.Stdout, pd, root, "", "/Root", maxlevel)
 		fmt.Println()
 	}
 }
