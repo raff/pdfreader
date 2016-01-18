@@ -1,6 +1,7 @@
 package pdutil
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 
@@ -12,31 +13,37 @@ var (
 	Debugobj = false
 )
 
-func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int) {
-	maxlevel -= 1
-	l := len(o)
+func IsRef(o []byte) bool {
+	return bytes.HasSuffix(o, []byte(" R"))
+}
 
-	if l > 2 {
-		if o[l-2] == ' ' && o[l-1] == 'R' { // reference
-			ref := fmt.Sprintf("<<%s>>", o)
-			o = pd.Obj(o)
+func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int, fmtref string) {
+	if IsRef(o) {
+		ref := fmt.Sprintf("<<%s>>", o)
 
-			if prefix == "" {
-				prefix = ref
-			} else {
-				prefix += " " + ref
-			}
+		//if Debugobj {
+		//        fmt.Fprintf(w, "%% %s\n", o)
+		//}
+
+		o = pd.Obj(o)
+
+		if prefix == "" {
+			prefix = ref
+		} else {
+			prefix += " " + ref
 		}
 	}
 
-	if l == 0 {
+	if len(o) == 0 {
 		fmt.Fprintf(w, "%s%s %s\n", indent, prefix, "<<empty>>")
 		return
 	}
 
 	if Debugobj {
-		fmt.Fprintf(w, "%% %s", o)
+		fmt.Fprintf(w, "%% %s\n", o)
 	}
+
+	maxlevel -= 1
 
 	switch o[0] {
 	case '[': // array
@@ -49,8 +56,13 @@ func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix stri
 			fmt.Fprintf(w, "%s<<more>>\n", indent)
 		} else {
 			for i, v := range a {
-
-				Printobj(w, pd, v, indent, fmt.Sprintf("%d:", i), maxlevel)
+				if fmtref != "" && IsRef(v) {
+					fmt.Fprintf(w, "%s%d: ", indent, i)
+					fmt.Fprintf(w, fmtref, v)
+					fmt.Fprintln(w)
+				} else {
+					Printobj(w, pd, v, indent, fmt.Sprintf("%d:", i), maxlevel, fmtref)
+				}
 			}
 		}
 
@@ -67,10 +79,21 @@ func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix stri
 			fmt.Fprintf(w, "%s<<more>>\n", indent)
 		} else {
 			for k, v := range d {
-				if k == "/Parent" { // backreference - don't follow
-					fmt.Fprintf(w, "%s%s <<%s>>\n", indent, k, string(v))
+				if fmtref != "" && IsRef(v) {
+					fmt.Fprintf(w, "%s%s ", indent, k)
+					fmt.Fprintf(w, fmtref, v)
+					fmt.Fprintln(w)
 				} else {
-					Printobj(w, pd, v, indent, k, maxlevel)
+					if k == "/Parent" { // backreference - don't follow
+						vv := string(v)
+						if fmtref != "" {
+							vv = fmt.Sprintf(fmtref, v)
+						}
+
+						fmt.Fprintf(w, "%s%s <<%s>>\n", indent, k, vv)
+					} else {
+						Printobj(w, pd, v, indent, k, maxlevel, fmtref)
+					}
 				}
 			}
 		}
@@ -89,15 +112,20 @@ func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix stri
 	}
 }
 
-func Printdic(w io.Writer, pd *pdfread.PdfReaderT, d pdfread.DictionaryT, indent, prefix string, maxlevel int) {
+func Printdic(w io.Writer, pd *pdfread.PdfReaderT, d pdfread.DictionaryT, indent, prefix string, maxlevel int, fmtref string) {
 	fmt.Fprintf(w, "%s%s %s\n", indent, prefix, "{")
 	indent += "  "
 
 	for k, v := range d {
 		if k == "/Parent" { // backreference - don't follow
-			fmt.Fprintf(w, "%s%s <<%s>>\n", indent, k, string(v))
+			vv := string(v)
+			if fmtref != "" {
+				vv = fmt.Sprintf(fmtref, v)
+			}
+
+			fmt.Fprintf(w, "%s%s <<%s>>\n", indent, k, vv)
 		} else {
-			Printobj(w, pd, v, indent, k, maxlevel)
+			Printobj(w, pd, v, indent, k, maxlevel, fmtref)
 		}
 	}
 
