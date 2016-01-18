@@ -513,6 +513,7 @@ func (pd *PdfReaderT) Stream(reference []byte) (DictionaryT, []byte) {
 	pd.rdr.Seek(int64(q), 0)
 	t, _ := ps.Token(pd.rdr)
 	if string(t) != "stream" {
+		util.Log("Stream", string(reference), "not a stream", string(t))
 		return nil, []byte{}
 	}
 	ps.SkipLE(pd.rdr)
@@ -563,6 +564,7 @@ func decodeStream(dic DictionaryT, data []byte) []byte {
 			case "/ASCIIHexDecode":
 				data, _ = hex.DecodeString(string(data))
 			default:
+				util.Log("Unsupported filter", string(filter[ff]))
 				data = []byte{}
 			}
 
