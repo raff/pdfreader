@@ -36,16 +36,21 @@ func main() {
 		fmt.Println(pd.Version)
 		fmt.Println()
 
-		fmt.Println("Trailer {")
-		for k, v := range pd.Trailer {
-			fmt.Printf("  %s %q\n", k, v)
-		}
-		fmt.Println("}")
+		pdutil.Printdic(os.Stdout, pd, pd.Trailer, "", "/Trailer", maxlevel, "")
 		fmt.Println()
 
-		root := pd.Trailer["/Root"]
+		/*
+			fmt.Println("Trailer {")
+			for k, v := range pd.Trailer {
+				fmt.Printf("  %s %q\n", k, v)
+			}
+			fmt.Println("}")
+			fmt.Println()
 
-		pdutil.Printobj(os.Stdout, pd, root, "", "/Root", maxlevel)
-		fmt.Println()
+			root := pd.Trailer["/Root"]
+
+			pdutil.Printobj(os.Stdout, pd, root, "", "/Root", maxlevel)
+			fmt.Println()
+		*/
 	}
 }
