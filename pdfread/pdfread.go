@@ -39,6 +39,7 @@ type PdfReaderT struct {
 	Startxref int               // starting of xref table
 	Xref      map[int]int       // "pointers" of the xref table
 	Trailer   DictionaryT       // trailer dictionary of the file
+	PageMode  string            // /Root/PageMode
 	rcache    map[string][]byte // resolver cache
 	rncache   map[string]int    // resolver cache (positions in file)
 	dicache   map[string]DictionaryT
@@ -480,6 +481,29 @@ func (pd *PdfReaderT) Pages() [][]byte {
 	return pd.pages
 }
 
+type Outline struct {
+	Title string
+	Page  []byte
+}
+
+func (pd *PdfReaderT) Outlines() []Outline {
+	if pd.PageMode != "/UseOutlines" {
+		return nil
+	}
+
+	d := pd.Dic(pd.Dic(pd.Trailer["/Root"])["/Outlines"])
+	outlines := make([]Outline, pd.Num(d["/Count"]))
+
+	p := pd.Dic(d["/First"])
+	for i := 0; p != nil; i++ {
+		outlines[i].Page = pd.Arr(p["/Dest"])[0]
+		outlines[i].Title = string(p["/Title"])
+		p = pd.Dic(p["/Next"])
+	}
+
+	return outlines
+}
+
 // pd.Attribute() tries to get an attribute definition from a page
 // reference.  Note that the attribute definition is not resolved - so it's
 // possible to get back a reference here.
@@ -611,6 +635,7 @@ func (pd *PdfReaderT) Close() {
 	pd.Startxref = -1
 	pd.Xref = nil
 	pd.Trailer = nil
+	pd.PageMode = ""
 	pd.rcache = nil
 	pd.rncache = nil
 	pd.dicache = nil
@@ -723,6 +748,8 @@ func Load(fn string) *PdfReaderT {
 			util.Log(o, i)
 		}
 	}
+
+	r.PageMode = string(r.Dic(r.Trailer["/Root"])["/PageMode"])
 
 	return r
 }
