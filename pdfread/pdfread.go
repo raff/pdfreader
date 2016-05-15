@@ -483,7 +483,18 @@ func (pd *PdfReaderT) Pages() [][]byte {
 
 type Outline struct {
 	Title string
-	Page  []byte
+	Page  int
+        Ref   []byte
+}
+
+func (pd *PdfReaderT) pageNum(p []byte) int {
+	for i, pg := range pd.Pages() {
+		if bytes.Equal(p, pg) {
+			return i
+		}
+	}
+
+	return -1
 }
 
 func (pd *PdfReaderT) Outlines() []Outline {
@@ -496,8 +507,9 @@ func (pd *PdfReaderT) Outlines() []Outline {
 
 	p := pd.Dic(d["/First"])
 	for i := 0; p != nil; i++ {
-		outlines[i].Page = pd.Arr(p["/Dest"])[0]
-		outlines[i].Title = string(p["/Title"])
+		outlines[i].Ref = pd.Arr(p["/Dest"])[0]
+		outlines[i].Page = pd.pageNum(outlines[i].Ref)
+		outlines[i].Title = string(ps.String(p["/Title"]))
 		p = pd.Dic(p["/Next"])
 	}
 
