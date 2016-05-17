@@ -141,9 +141,9 @@ var Ops = map[string]func(t *CharMapperI){
 	"endcodespacerange": func(t *CharMapperI) {
 		a := t.St.Drop(t.St.Depth() - t.Marker)
 		for k := 0; k < len(a); k += 2 {
-			to, l := ps.StrIntL(ps.String(a[k+1]))
-			t.Target.Ranges.AddDef(int(a[k][0]), int(a[k+1][0])+1, l)
-			t.Target.Ranges.AddDef(ps.StrInt(ps.String(a[k])), to+1, l) // just not used.
+			from, _ := ps.StrIntL(ps.String(a[k]))
+			to, _ := ps.StrIntL(ps.String(a[k+1]))
+			t.Target.Ranges.AddDef(from, to, 1)
 		}
 	},
 	"endnotdefchar": func(t *CharMapperI) {
@@ -210,6 +210,8 @@ func Read(rdr fancy.Reader) (r *CharMapperT) {
 }
 
 func Decode(s []byte, to *CharMapperT) (r []byte) {
+	util.Logf("Decode %02x\n", s)
+
 	r = make([]byte, len(s)*6)
 	p := 0
 	for k := 0; k < len(s); {
