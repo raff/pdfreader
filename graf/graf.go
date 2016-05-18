@@ -373,7 +373,7 @@ func (pd *PdfDrawerT) Interpret(rdr fancy.Reader) {
 			break
 		}
 		if f, ok := pd.Ops[string(t)]; ok {
-			util.Log(string(t), pd)
+			util.Logf("%v %#v %s", string(t), *pd.ConfigD, pd.Stack.Dump())
 			f(pd)
 		} else {
 			pd.Stack.Push(t)
