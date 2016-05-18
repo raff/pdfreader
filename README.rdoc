@@ -21,5 +21,5 @@ over maintainence, I'm just experimenting with go.
     ./bin/pdtosvg foo.pdf
     ./bin/pdstream foo.pdf "9 0 R"
     ./bin/tt1 foo.pdf
-    ./bin/pdserve foo.pdf && curl http://127.0.0.1:12345/hello
+    ./bin/pdserve foo.pdf &; curl http://127.0.0.1:12345/hello?1
     ./bin/pdtest foo.pdf
