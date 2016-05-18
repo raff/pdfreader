@@ -8,12 +8,13 @@
 package cmapi
 
 import (
+        "unicode/utf8"
+
 	"github.com/raff/pdfreader/cmapt"
 	"github.com/raff/pdfreader/fancy"
 	"github.com/raff/pdfreader/ps"
 	"github.com/raff/pdfreader/stacks"
 	"github.com/raff/pdfreader/util"
-	"github.com/raff/pdfreader/xchar"
 )
 
 // CMap "interpreter" - this PS btw.
@@ -218,7 +219,7 @@ func Decode(s []byte, to *CharMapperT) (r []byte) {
 		l := to.Ranges.Code(int(s[k]))
 		a := ps.StrInt(s[k : k+l])
 		k += l
-		p += xchar.EncodeRune(to.Uni.Code(a), r[p:len(r)])
+		p += utf8.EncodeRune(r[p:len(r)], rune(to.Uni.Code(a)))
 	}
 	return r[0:p]
 }
