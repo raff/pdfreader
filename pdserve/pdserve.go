@@ -23,7 +23,7 @@ var pd *pdfread.PdfReaderT
 func HelloServer(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
 	page := strm.Int(req.URL.RawQuery, 1) - 1
-	w.Write(svg.Page(pd, page))
+	w.Write(svg.Page(pd, page, true))
 }
 
 func complain(err string) {
