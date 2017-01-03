@@ -2,6 +2,7 @@
 package main
 
 import (
+	"compress/zlib"
 	"encoding/binary"
 	"flag"
 	"fmt"
@@ -11,8 +12,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/raff/pdfreader/fancy"
 	"github.com/raff/pdfreader/pdfread"
-	//"github.com/raff/pdfreader/strm"
 	"github.com/raff/pdfreader/util"
 )
 
@@ -38,17 +39,19 @@ const (
 	IFD_LONG     = 4
 	IFD_RATIONAL = 5
 
-	TAG_IMAGE_WIDTH                = 0x100
-	TAG_IMAGE_LENGTH               = 0x101
-	TAG_BITS_PER_SAMPLE            = 0x102
-	TAG_COMPRESSION                = 0x103
-	TAG_PHOTOMETRIC_INTERPRETATION = 0x106
-	TAG_STRIP_OFFSETS              = 0x111
-	TAG_ROWS_PER_STRIP             = 0x116
-	TAG_STRIP_BYTE_COUNTS          = 0x117
-	TAG_X_RESOLUTION               = 0x11A
-	TAG_Y_RESOLUTION               = 0x11B
-	TAG_RESOLUTION_UNIT            = 0x128
+	TAG_IMAGE_WIDTH                = 0x100 // 256
+	TAG_IMAGE_LENGTH               = 0x101 // 257
+	TAG_BITS_PER_SAMPLE            = 0x102 // 258
+	TAG_COMPRESSION                = 0x103 // 259
+	TAG_PHOTOMETRIC_INTERPRETATION = 0x106 // 262
+	TAG_STRIP_OFFSETS              = 0x111 // 273
+	TAG_ORIENTATION                = 0x112 // 274
+	TAG_SAMPLES_PER_PIXEL          = 0x115 // 277
+	TAG_ROWS_PER_STRIP             = 0x116 // 278
+	TAG_STRIP_BYTE_COUNTS          = 0x117 // 279
+	TAG_X_RESOLUTION               = 0x11A // 282
+	TAG_Y_RESOLUTION               = 0x11B // 283
+	TAG_RESOLUTION_UNIT            = 0x128 // 296
 )
 
 type IFDEntry struct {
@@ -56,6 +59,8 @@ type IFDEntry struct {
 	Type        uint16
 	Count       uint32
 	ValueOffset uint32
+
+	Num, Den uint32 // used only for IFDRational
 }
 
 type TiffBuilder struct {
@@ -75,6 +80,11 @@ func NewTiffBuilder(w io.Writer) *TiffBuilder {
 
 func (t *TiffBuilder) Write(v interface{}) error {
 	return binary.Write(t.w, binary.LittleEndian, v)
+}
+
+func (t *TiffBuilder) WriteBytes(b []byte) error {
+	_, err := t.w.Write(b)
+	return err
 }
 
 func (t *TiffBuilder) WriteHeader() {
@@ -97,6 +107,10 @@ func IFDLong(tag uint16, value uint32) IFDEntry {
 	return IFDEntry{Tag: tag, Type: IFD_LONG, Count: 1, ValueOffset: value}
 }
 
+func IFDRational(tag uint16, num, den uint32) IFDEntry {
+	return IFDEntry{Tag: tag, Type: IFD_RATIONAL, Count: 1, ValueOffset: 0, Num: num, Den: den}
+}
+
 func (t *TiffBuilder) AddShort(tag uint16, value uint16) {
 	t.ifd = append(t.ifd, IFDShort(tag, value))
 }
@@ -105,18 +119,36 @@ func (t *TiffBuilder) AddLong(tag uint16, value uint32) {
 	t.ifd = append(t.ifd, IFDLong(tag, value))
 }
 
+func (t *TiffBuilder) AddRational(tag uint16, num, den uint32) {
+	t.ifd = append(t.ifd, IFDRational(tag, num, den))
+}
+
 func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 	util.Logf("offset: %08x\n", t.offset)
 
 	n := len(t.ifd)
-	t.offset += 2 + (12 * uint32(n))
+	t.offset += 6 + (12 * uint32(n))
 
 	t.Write(uint16(n))
 
+	padding := false
+
 	for _, e := range t.ifd {
-		if e.Tag == TAG_STRIP_OFFSETS {
-			// assume the only data after the IFD is the image data in one strip
+		if e.Tag == TAG_STRIP_OFFSETS || e.Type == IFD_RATIONAL {
 			e.ValueOffset = t.offset
+
+			if e.Tag == TAG_STRIP_OFFSETS {
+				util.Log("offset:", t.offset)
+
+				t.offset += uint32(len(data)) + 4
+				padding = (t.offset & 1) == 1
+				if padding {
+					t.offset += 1
+				}
+			} else {
+				util.Log("offset:", t.offset)
+				t.offset += 8 // 4 + 4
+			}
 		}
 
 		util.Logf("tag:%v type:%v count:%v value:%v\n", e.Tag, e.Type, e.Count, e.ValueOffset)
@@ -129,6 +161,8 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 			t.Write(e.ValueOffset)
 		} else if e.Type == IFD_LONG {
 			t.Write(e.ValueOffset)
+		} else if e.Type == IFD_RATIONAL {
+			t.Write(e.ValueOffset)
 		} else if e.Type == IFD_SHORT {
 			t.Write(uint16(e.ValueOffset))
 			t.Write(uint16(0))
@@ -137,29 +171,32 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 		}
 	}
 
-	t.ifd = []IFDEntry{}
-	t.offset += uint32(len(data)) + 4
-	padding := (t.offset & 1) == 1
-
-	if padding {
-		t.offset += 1
-	}
-
 	if next {
-		util.Logf("next:%v\n", t.offset)
+		util.Log("next:", t.offset)
 		t.Write(uint32(t.offset))
 	} else {
 		util.Log("next:0")
 		t.Write(uint32(0))
 	}
 
-	util.Logf("datalen:%v\n", len(data))
-	t.w.Write(data)
+	util.Log("datalen:", len(data))
+	t.WriteBytes(data)
 
 	if padding {
-		util.Log("padding")
-		t.w.Write([]byte{0})
+		t.WriteBytes([]byte{0})
+		util.Log("padding:", t.offset)
 	}
+
+	for _, e := range t.ifd {
+		if e.Type != IFD_RATIONAL {
+			continue
+		}
+
+		t.Write(e.Num)
+		t.Write(e.Den)
+	}
+
+	t.ifd = []IFDEntry{}
 }
 
 func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
@@ -178,6 +215,15 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 				continue
 			}
 
+			if string(dic["/ColorSpace"]) != "/DeviceGray" {
+				log.Fatal("cannot convert", string(dic["/ColorSpace"]))
+			}
+
+			if string(dic["/Filter"]) == "/FlatDecode" {
+				data = fancy.ReadAndClose(zlib.NewReader(fancy.SliceReader(data)))
+				log.Println("decoded", string(data))
+			}
+
 			if string(dic["/Filter"]) != "/CCITTFaxDecode" {
 				log.Fatal("cannot decode ", string(dic["/Filter"]))
 			}
@@ -186,6 +232,7 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 			cols := pd.Num(dparms["/Columns"])
 			rows := pd.Num(dparms["/Rows"])
 			k := pd.Num(dparms["/K"])
+			bps := pd.Num(dic["/BitsPerComponent"])
 
 			if k >= 0 {
 				// can't do this right now
@@ -194,12 +241,17 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 
 			t.AddLong(TAG_IMAGE_WIDTH, uint32(cols))
 			t.AddLong(TAG_IMAGE_LENGTH, uint32(rows))
-			t.AddShort(TAG_BITS_PER_SAMPLE, 1)
-			t.AddShort(TAG_COMPRESSION, 4)
-			t.AddShort(TAG_PHOTOMETRIC_INTERPRETATION, 0)
+			t.AddShort(TAG_BITS_PER_SAMPLE, uint16(bps))
+			t.AddShort(TAG_COMPRESSION, 4)                // CCITT Group 4
+			t.AddShort(TAG_PHOTOMETRIC_INTERPRETATION, 0) // white is zero
 			t.AddLong(TAG_STRIP_OFFSETS, 0)
+			//t.AddShort(TAG_ORIENTATION, 1)
+			//t.AddShort(TAG_SAMPLES_PER_PIXEL, 1)
 			t.AddLong(TAG_ROWS_PER_STRIP, uint32(rows))
 			t.AddLong(TAG_STRIP_BYTE_COUNTS, uint32(len(data)))
+			//t.AddRational(TAG_X_RESOLUTION, 300, 1) // 300 dpi (300/1)
+			//t.AddRational(TAG_Y_RESOLUTION, 300, 1) // 300 dpi (300/1)
+			//t.AddShort(TAG_RESOLUTION_UNIT, 2)      // pixels/inch
 
 			t.WriteIFD(data, next)
 		}
