@@ -216,7 +216,7 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 			}
 
 			if string(dic["/ColorSpace"]) != "/DeviceGray" {
-				log.Fatal("cannot convert", string(dic["/ColorSpace"]))
+				log.Fatal("cannot convert ", string(pd.Obj(dic["/ColorSpace"])))
 			}
 
 			if string(dic["/Filter"]) == "/FlatDecode" {
