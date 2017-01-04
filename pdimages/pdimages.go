@@ -215,45 +215,62 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 				continue
 			}
 
-			if string(dic["/ColorSpace"]) != "/DeviceGray" {
-				log.Fatal("cannot convert ", string(pd.Obj(dic["/ColorSpace"])))
-			}
-
 			if string(dic["/Filter"]) == "/FlatDecode" {
 				data = fancy.ReadAndClose(zlib.NewReader(fancy.SliceReader(data)))
 				log.Println("decoded", string(data))
 			}
 
-			if string(dic["/Filter"]) != "/CCITTFaxDecode" {
+			switch string(dic["/Filter"]) {
+			case "/CCITTFaxDecode": // TIFF
+				if string(dic["/ColorSpace"]) != "/DeviceGray" {
+					log.Fatal("cannot convert ", string(pd.Obj(dic["/ColorSpace"])))
+				}
+
+				dparms := pd.Dic(dic["/DecodeParms"])
+				width := pd.Num(dparms["/Columns"])
+				height := pd.Num(dparms["/Rows"])
+				k := pd.Num(dparms["/K"])
+				bpc := pd.Num(dic["/BitsPerComponent"])
+
+				if k >= 0 {
+					// can't do this right now
+					log.Fatal("can't do encoding with K=", k)
+				}
+
+				t.AddLong(TAG_IMAGE_WIDTH, uint32(width))
+				t.AddLong(TAG_IMAGE_LENGTH, uint32(height))
+				t.AddShort(TAG_BITS_PER_SAMPLE, uint16(bpc))
+				t.AddShort(TAG_COMPRESSION, 4)                // CCITT Group 4
+				t.AddShort(TAG_PHOTOMETRIC_INTERPRETATION, 0) // white is zero
+				t.AddLong(TAG_STRIP_OFFSETS, 0)
+				//t.AddShort(TAG_ORIENTATION, 1)
+				//t.AddShort(TAG_SAMPLES_PER_PIXEL, 1)
+				t.AddLong(TAG_ROWS_PER_STRIP, uint32(height))
+				t.AddLong(TAG_STRIP_BYTE_COUNTS, uint32(len(data)))
+				//t.AddRational(TAG_X_RESOLUTION, 300, 1) // 300 dpi (300/1)
+				//t.AddRational(TAG_Y_RESOLUTION, 300, 1) // 300 dpi (300/1)
+				//t.AddShort(TAG_RESOLUTION_UNIT, 2)      // pixels/inch
+
+				t.WriteIFD(data, next)
+
+			case "/DCTDecode": // JPEG
+				/*
+					width := pd.Num(dic["/Width"])
+					height := pd.Num(dic["/Height"])
+					bpc := pd.Num(dic["/BitsPerComponent"])
+				*/
+
+				f, err := os.Create("test.jpg")
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				f.Write(data)
+				defer f.Close()
+
+			default:
 				log.Fatal("cannot decode ", string(dic["/Filter"]))
 			}
-
-			dparms := pd.Dic(dic["/DecodeParms"])
-			cols := pd.Num(dparms["/Columns"])
-			rows := pd.Num(dparms["/Rows"])
-			k := pd.Num(dparms["/K"])
-			bps := pd.Num(dic["/BitsPerComponent"])
-
-			if k >= 0 {
-				// can't do this right now
-				log.Fatal("can't do encoding with K=", k)
-			}
-
-			t.AddLong(TAG_IMAGE_WIDTH, uint32(cols))
-			t.AddLong(TAG_IMAGE_LENGTH, uint32(rows))
-			t.AddShort(TAG_BITS_PER_SAMPLE, uint16(bps))
-			t.AddShort(TAG_COMPRESSION, 4)                // CCITT Group 4
-			t.AddShort(TAG_PHOTOMETRIC_INTERPRETATION, 0) // white is zero
-			t.AddLong(TAG_STRIP_OFFSETS, 0)
-			//t.AddShort(TAG_ORIENTATION, 1)
-			//t.AddShort(TAG_SAMPLES_PER_PIXEL, 1)
-			t.AddLong(TAG_ROWS_PER_STRIP, uint32(rows))
-			t.AddLong(TAG_STRIP_BYTE_COUNTS, uint32(len(data)))
-			//t.AddRational(TAG_X_RESOLUTION, 300, 1) // 300 dpi (300/1)
-			//t.AddRational(TAG_Y_RESOLUTION, 300, 1) // 300 dpi (300/1)
-			//t.AddShort(TAG_RESOLUTION_UNIT, 2)      // pixels/inch
-
-			t.WriteIFD(data, next)
 		}
 	}
 }
