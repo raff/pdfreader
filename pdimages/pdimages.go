@@ -6,6 +6,9 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"log"
 	"os"
@@ -215,15 +218,10 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 				continue
 			}
 
-			if string(dic["/Filter"]) == "/FlatDecode" {
-				data = fancy.ReadAndClose(zlib.NewReader(fancy.SliceReader(data)))
-				log.Println("decoded", string(data))
-			}
-
 			switch string(dic["/Filter"]) {
 			case "/CCITTFaxDecode": // TIFF
 				if string(dic["/ColorSpace"]) != "/DeviceGray" {
-					log.Fatal("cannot convert ", string(pd.Obj(dic["/ColorSpace"])))
+					log.Fatal("cannot convert /CCITTFaxDecode ", string(pd.Obj(dic["/ColorSpace"])))
 				}
 
 				dparms := pd.Dic(dic["/DecodeParms"])
@@ -266,7 +264,38 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 				}
 
 				f.Write(data)
-				defer f.Close()
+				f.Close()
+
+			case "/FlateDecode": // compressed bitmap
+				data = fancy.ReadAndClose(zlib.NewReader(fancy.SliceReader(data)))
+				width := pd.Num(dic["/Width"])
+				height := pd.Num(dic["/Height"])
+				bpc := pd.Num(dic["/BitsPerComponent"])
+
+				if bpc != 8 {
+					log.Fatal("cannot convert /FlateDecode bpc:", bpc)
+				}
+
+				if string(dic["/ColorSpace"]) != "/DeviceRGB" {
+					log.Fatal("cannot convert /FlateDecode ", string(pd.Obj(dic["/ColorSpace"])))
+				}
+
+				ima := image.NewRGBA(image.Rect(0, 0, width, height))
+
+				for y := 0; y < height; y++ {
+					for x := 0; x < width; x++ {
+						ima.Set(x, y, color.RGBA{R: data[0], G: data[1], B: data[2], A: 255})
+						data = data[3:]
+					}
+				}
+
+				f, err := os.Create("test.png")
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				png.Encode(f, ima)
+				f.Close()
 
 			default:
 				log.Fatal("cannot decode ", string(dic["/Filter"]))
