@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"compress/zlib"
 	"encoding/binary"
 	"flag"
@@ -18,6 +19,8 @@ import (
 	"github.com/raff/pdfreader/fancy"
 	"github.com/raff/pdfreader/pdfread"
 	"github.com/raff/pdfreader/util"
+
+	tiff "github.com/chai2010/tiff"
 )
 
 // The program takes a PDF file and extract the images
@@ -202,7 +205,7 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 	t.ifd = []IFDEntry{}
 }
 
-func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
+func extract(pd *pdfread.PdfReaderT, page int, base string) (filename string, err error) {
 	pg := pd.Pages()[page-1]
 	mbox := util.StringArray(pd.Arr(pd.Att("/MediaBox", pg)))
 	fmt.Println("Page", page)
@@ -235,6 +238,10 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 					log.Fatal("can't do encoding with K=", k)
 				}
 
+				buffer := &bytes.Buffer{}
+
+				t := NewTiffBuilder(buffer)
+				t.WriteHeader()
 				t.AddLong(TAG_IMAGE_WIDTH, uint32(width))
 				t.AddLong(TAG_IMAGE_LENGTH, uint32(height))
 				t.AddShort(TAG_BITS_PER_SAMPLE, uint16(bpc))
@@ -248,8 +255,24 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 				//t.AddRational(TAG_X_RESOLUTION, 300, 1) // 300 dpi (300/1)
 				//t.AddRational(TAG_Y_RESOLUTION, 300, 1) // 300 dpi (300/1)
 				//t.AddShort(TAG_RESOLUTION_UNIT, 2)      // pixels/inch
+				t.WriteIFD(data, false)
 
-				t.WriteIFD(data, next)
+				buffer = bytes.NewBuffer(buffer.Bytes())
+				ima, derr := tiff.Decode(buffer)
+				if derr != nil {
+					return "", derr
+				}
+
+				filename = base + ".png"
+
+				f, cerr := os.Create(filename)
+				if cerr != nil {
+					return "", cerr
+				}
+
+				err = png.Encode(f, ima)
+				f.Close()
+				return
 
 			case "/DCTDecode": // JPEG
 				/*
@@ -258,13 +281,16 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 					bpc := pd.Num(dic["/BitsPerComponent"])
 				*/
 
-				f, err := os.Create("test.jpg")
-				if err != nil {
-					log.Fatal(err)
+				filename = base + ".jpg"
+
+				f, cerr := os.Create(filename)
+				if cerr != nil {
+					return "", cerr
 				}
 
-				f.Write(data)
+				_, err = f.Write(data)
 				f.Close()
+				return
 
 			case "/FlateDecode": // compressed bitmap
 				data = fancy.ReadAndClose(zlib.NewReader(fancy.SliceReader(data)))
@@ -289,19 +315,24 @@ func extract(pd *pdfread.PdfReaderT, page int, t *TiffBuilder, next bool) {
 					}
 				}
 
-				f, err := os.Create("test.png")
-				if err != nil {
-					log.Fatal(err)
+				filename = base + ".png"
+
+				f, cerr := os.Create(filename)
+				if cerr != nil {
+					return "", cerr
 				}
 
-				png.Encode(f, ima)
+				err = png.Encode(f, ima)
 				f.Close()
+				return
 
 			default:
 				log.Fatal("cannot decode ", string(dic["/Filter"]))
 			}
 		}
 	}
+
+	return
 }
 
 func main() {
@@ -314,10 +345,6 @@ func main() {
 		complain("")
 	}
 
-	if *page < 0 {
-		complain("Bad page!\n\n")
-	}
-
 	filename := flag.Arg(0)
 	pd := pdfread.Load(filename)
 	if pd == nil {
@@ -326,7 +353,11 @@ func main() {
 
 	npages := len(pd.Pages())
 
-	if *page > npages {
+	if *page < 0 {
+		*page += npages + 1
+	}
+
+	if *page < 0 || *page > npages {
 		complain("Page out of range!\n\n")
 	}
 
@@ -334,28 +365,19 @@ func main() {
 	if p := strings.LastIndex(output, "."); p > 0 {
 		output = output[:p]
 	}
-	output += ".tif"
-
-	f, err := os.Create(output)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer f.Close()
-
-	t := NewTiffBuilder(f)
-	t.WriteHeader()
 
 	if *page == 0 {
 		for p := 1; p <= npages; p++ {
-			extract(pd, p, t, p < npages)
+			pout := fmt.Sprintf("%s_%d", output, p)
+			if _, err := extract(pd, p, pout); err != nil {
+				log.Println("error extracting page", p, err)
+				break
+			}
 			fmt.Println("--------------")
 		}
-		return
-	}
-
-	if *page <= npages {
-		extract(pd, *page, t, false)
-		return
+	} else if *page <= npages {
+		if _, err := extract(pd, *page, output); err != nil {
+			log.Println("error extracting page", *page, err)
+		}
 	}
 }
