@@ -25,6 +25,10 @@ import (
 
 // The program takes a PDF file and extract the images
 
+var (
+	dryrun bool
+)
+
 func complain(err string) {
 	fmt.Printf("%susage: pdimages [--page #] foo.pdf\n", err)
 	os.Exit(1)
@@ -205,7 +209,7 @@ func (t *TiffBuilder) WriteIFD(data []byte, next bool) {
 	t.ifd = []IFDEntry{}
 }
 
-func extract(pd *pdfread.PdfReaderT, page int, base string) (filename string, err error) {
+func extract(pd *pdfread.PdfReaderT, page int, base string) (count, size int, err error) {
 	pg := pd.Pages()[page-1]
 	mbox := util.StringArray(pd.Arr(pd.Att("/MediaBox", pg)))
 	fmt.Println("Page", page)
@@ -221,8 +225,15 @@ func extract(pd *pdfread.PdfReaderT, page int, base string) (filename string, er
 				continue
 			}
 
+			count += 1
+			size += len(data) // pd.Num(dic["/Length"])
+
 			switch string(dic["/Filter"]) {
 			case "/CCITTFaxDecode": // TIFF
+				if dryrun {
+					return
+				}
+
 				if string(dic["/ColorSpace"]) != "/DeviceGray" {
 					log.Fatal("cannot convert /CCITTFaxDecode ", string(pd.Obj(dic["/ColorSpace"])))
 				}
@@ -260,14 +271,15 @@ func extract(pd *pdfread.PdfReaderT, page int, base string) (filename string, er
 				buffer = bytes.NewBuffer(buffer.Bytes())
 				ima, derr := tiff.Decode(buffer)
 				if derr != nil {
-					return "", derr
+					err = derr
+					return
 				}
 
-				filename = base + ".png"
-
+				filename := base + ".png"
 				f, cerr := os.Create(filename)
 				if cerr != nil {
-					return "", cerr
+					err = cerr
+					return
 				}
 
 				err = png.Encode(f, ima)
@@ -281,11 +293,15 @@ func extract(pd *pdfread.PdfReaderT, page int, base string) (filename string, er
 					bpc := pd.Num(dic["/BitsPerComponent"])
 				*/
 
-				filename = base + ".jpg"
+				if dryrun {
+					return
+				}
 
+				filename := base + ".jpg"
 				f, cerr := os.Create(filename)
 				if cerr != nil {
-					return "", cerr
+					err = cerr
+					return
 				}
 
 				_, err = f.Write(data)
@@ -297,6 +313,10 @@ func extract(pd *pdfread.PdfReaderT, page int, base string) (filename string, er
 				width := pd.Num(dic["/Width"])
 				height := pd.Num(dic["/Height"])
 				bpc := pd.Num(dic["/BitsPerComponent"])
+
+				if dryrun {
+					return
+				}
 
 				if bpc != 8 {
 					log.Fatal("cannot convert /FlateDecode bpc:", bpc)
@@ -315,11 +335,11 @@ func extract(pd *pdfread.PdfReaderT, page int, base string) (filename string, er
 					}
 				}
 
-				filename = base + ".png"
-
+				filename := base + ".png"
 				f, cerr := os.Create(filename)
 				if cerr != nil {
-					return "", cerr
+					err = cerr
+					return
 				}
 
 				err = png.Encode(f, ima)
@@ -327,7 +347,9 @@ func extract(pd *pdfread.PdfReaderT, page int, base string) (filename string, er
 				return
 
 			default:
-				log.Fatal("cannot decode ", string(dic["/Filter"]))
+				if !dryrun {
+					log.Fatal("cannot decode ", string(dic["/Filter"]))
+				}
 			}
 		}
 	}
@@ -337,6 +359,8 @@ func extract(pd *pdfread.PdfReaderT, page int, base string) (filename string, er
 
 func main() {
 	flag.BoolVar(&util.Debug, "debug", false, "print debug info")
+	flag.BoolVar(&dryrun, "n", false, "dry-run / don't extract images")
+	//sizes := flag.Bool("sizes", false, "print images info")
 	page := flag.Int("page", 0, "page to extract, all pages if missing")
 
 	flag.Parse()
@@ -366,18 +390,30 @@ func main() {
 		output = output[:p]
 	}
 
+	tcount := 0
+	tsize := 0
+
 	if *page == 0 {
 		for p := 1; p <= npages; p++ {
 			pout := fmt.Sprintf("%s_%d", output, p)
-			if _, err := extract(pd, p, pout); err != nil {
-				log.Println("error extracting page", p, err)
+			if n, sz, err := extract(pd, p, pout); err != nil {
+				log.Println("error extracting images for page", p, err)
 				break
+			} else {
+				tcount += n
+				tsize += sz
 			}
 			fmt.Println("--------------")
 		}
+
+		fmt.Printf("%40s - %3d pages, %3d images, size: %d/%d (%d%%)\n",
+			output, npages, tcount, tsize, pd.Size, tsize*100/int(pd.Size))
 	} else if *page <= npages {
-		if _, err := extract(pd, *page, output); err != nil {
-			log.Println("error extracting page", *page, err)
+		if n, sz, err := extract(pd, *page, output); err != nil {
+			log.Println("error extracting images for page", *page, err)
+		} else {
+			tcount += n
+			tsize += sz
 		}
 	}
 }
