@@ -34,6 +34,7 @@ type DictionaryT map[string][]byte
 
 type PdfReaderT struct {
 	File      string            // name of the file
+        Size      int64             // file size
 	Version   string            // PDF version
 	rdr       fancy.Reader      // reader for the contents
 	Startxref int               // starting of xref table
@@ -665,6 +666,8 @@ func Load(fn string) *PdfReaderT {
 		util.Log(fn, "FileReader error")
 		return nil
 	}
+
+        r.Size = r.rdr.Size()
 
 	v := make([]byte, 16)
 	r.rdr.ReadAt(v, 0)
