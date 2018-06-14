@@ -17,9 +17,20 @@ func IsRef(o []byte) bool {
 	return bytes.HasSuffix(o, []byte(" R"))
 }
 
-func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int, fmtref string) {
+type printNested struct {
+	visited map[string]bool
+}
+
+func (n printNested) printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int, fmtref string) {
 	if IsRef(o) {
 		ref := fmt.Sprintf("<<%s>>", o)
+
+		if n.visited[ref] {
+			fmt.Fprintf(w, "%s%s %s\n", indent, prefix, ref)
+			return
+		} else {
+			n.visited[ref] = true
+		}
 
 		//if Debugobj {
 		//        fmt.Fprintf(w, "%% %s\n", o)
@@ -61,7 +72,7 @@ func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix stri
 					fmt.Fprintf(w, fmtref, v)
 					fmt.Fprintln(w)
 				} else {
-					Printobj(w, pd, v, indent, fmt.Sprintf("%d:", i), maxlevel, fmtref)
+					n.printobj(w, pd, v, indent, fmt.Sprintf("%d:", i), maxlevel, fmtref)
 				}
 			}
 		}
@@ -92,7 +103,7 @@ func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix stri
 
 						fmt.Fprintf(w, "%s%s <<%s>>\n", indent, k, vv)
 					} else {
-						Printobj(w, pd, v, indent, k, maxlevel, fmtref)
+						n.printobj(w, pd, v, indent, k, maxlevel, fmtref)
 					}
 				}
 			}
@@ -112,23 +123,35 @@ func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix stri
 	}
 }
 
-func Printdic(w io.Writer, pd *pdfread.PdfReaderT, d pdfread.DictionaryT, indent, prefix string, maxlevel int, fmtref string) {
+func (n printNested) printdic(w io.Writer, pd *pdfread.PdfReaderT, d pdfread.DictionaryT, indent, prefix string, maxlevel int, fmtref string) {
 	fmt.Fprintf(w, "%s%s %s\n", indent, prefix, "{")
 	indent += "  "
 
 	for k, v := range d {
-		if k == "/Parent" { // backreference - don't follow
-			vv := string(v)
-			if fmtref != "" {
-				vv = fmt.Sprintf(fmtref, v)
-			}
+		/*
+			if k == "/Parent" { // backreference - don't follow
+				vv := string(v)
+				if fmtref != "" {
+					vv = fmt.Sprintf(fmtref, v)
+				}
 
-			fmt.Fprintf(w, "%s%s <<%s>>\n", indent, k, vv)
-		} else {
-			Printobj(w, pd, v, indent, k, maxlevel, fmtref)
-		}
+				fmt.Fprintf(w, "%s%s <<%s>>\n", indent, k, vv)
+			} else {
+		*/
+		n.printobj(w, pd, v, indent, k, maxlevel, fmtref)
+		/*
+			}
+		*/
 	}
 
 	indent = indent[2:]
 	fmt.Fprintf(w, "%s}\n", indent)
+}
+
+func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int, fmtref string) {
+	printNested{visited: map[string]bool{}}.printobj(w, pd, o, indent, prefix, maxlevel, fmtref)
+}
+
+func Printdic(w io.Writer, pd *pdfread.PdfReaderT, d pdfread.DictionaryT, indent, prefix string, maxlevel int, fmtref string) {
+	printNested{visited: map[string]bool{}}.printdic(w, pd, d, indent, prefix, maxlevel, fmtref)
 }
