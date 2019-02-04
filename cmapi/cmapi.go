@@ -8,7 +8,7 @@
 package cmapi
 
 import (
-        "unicode/utf8"
+	"unicode/utf8"
 
 	"github.com/raff/pdfreader/cmapt"
 	"github.com/raff/pdfreader/fancy"
