@@ -34,7 +34,7 @@ type DictionaryT map[string][]byte
 
 type PdfReaderT struct {
 	File      string            // name of the file
-        Size      int64             // file size
+	Size      int64             // file size
 	Version   string            // PDF version
 	rdr       fancy.Reader      // reader for the contents
 	Startxref int               // starting of xref table
@@ -485,7 +485,7 @@ func (pd *PdfReaderT) Pages() [][]byte {
 type Outline struct {
 	Title string
 	Page  int
-        Ref   []byte
+	Ref   []byte
 }
 
 func (pd *PdfReaderT) pageNum(p []byte) int {
@@ -667,7 +667,7 @@ func Load(fn string) *PdfReaderT {
 		return nil
 	}
 
-        r.Size = r.rdr.Size()
+	r.Size = r.rdr.Size()
 
 	v := make([]byte, 16)
 	r.rdr.ReadAt(v, 0)
