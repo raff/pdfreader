@@ -11,6 +11,7 @@ package svg
 import (
 	"fmt"
 	"github.com/raff/pdfreader/fancy"
+	"github.com/raff/pdfreader/graf"
 	"github.com/raff/pdfreader/pdfread"
 	"github.com/raff/pdfreader/strm"
 	"github.com/raff/pdfreader/svgdraw"
@@ -30,7 +31,38 @@ func Page(pd *pdfread.PdfReaderT, page int, xmlDecl bool) []byte {
 		complain("Page does not exist!\n")
 	}
 	mbox := util.StringArray(pd.Arr(pd.Att("/MediaBox", pg[page])))
-	drw := svgdraw.NewTestSvg()
+
+	rdict := pd.Dic(pd.Att("/Resources", pg[page]))
+	resources := graf.ResourcesT{ColorSpaces: map[string]graf.ColorSpaceT{}}
+
+	if cs := pd.Dic(rdict["/ColorSpace"]); cs != nil {
+		for name, ref := range cs {
+			values := pd.Arr(ref)
+
+			ctype := string(values[0])
+			n := 0
+
+			switch ctype {
+			case "/ICCBased":
+				dic, _ := pd.Stream(values[1])
+				n = pd.Num(dic["/N"])
+
+			case "/DeviceCMYK":
+				n = 4
+
+			case "/CalRGB", "/Lab", "/DeviceRGB":
+				n = 3
+
+			case "/CalGray", "/DeviceGray": // maybe /Separation and /Indexed
+				n = 1
+			}
+
+			resources.ColorSpaces[name] = graf.ColorSpaceT{Type: ctype, N: n}
+			util.Logf("ColorSpace %v %v", name, resources.ColorSpaces[name])
+		}
+	}
+
+	drw := svgdraw.NewTestSvg(resources)
 	svgtext.New(pd, drw).Page = page
 	w := strm.Mul(strm.Sub(mbox[2], mbox[0]), "1.25")
 	h := strm.Mul(strm.Sub(mbox[3], mbox[1]), "1.25")
