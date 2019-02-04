@@ -115,9 +115,9 @@ func (s *SvgT) RGB(rgb [][]byte) string {
 		strm.Percent(rgb[2]))
 }
 
-func NewTestSvg() *graf.PdfDrawerT {
+func NewTestSvg(res graf.ResourcesT) *graf.PdfDrawerT {
 	t := new(SvgT)
-	t.Drw = graf.NewPdfDrawer()
+	t.Drw = graf.NewPdfDrawer(res)
 	t.Drw.ConfigD.SetColors(t)
 	t.Drw.Draw = t
 	t.drwpath = stacks.NewStrStack(-1)
