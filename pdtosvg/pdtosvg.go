@@ -48,8 +48,15 @@ func main() {
 	util.Debug = *debug
 
 	if *asHtml {
-		fmt.Printf("<!DOCTYPE html><html><body>\n%s</body></html>\n", svg.Page(pd, *page, false))
+		fmt.Println("<!DOCTYPE html><html><body>")
+	}
+
+	if *page < 0 {
 	} else {
-		fmt.Printf("%s", svg.Page(pd, *page, true))
+		os.Stdout.Write(svg.Page(pd, *page, *asHtml))
+	}
+
+	if *asHtml {
+		fmt.Println("</body></html>")
 	}
 }
