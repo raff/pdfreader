@@ -657,11 +657,20 @@ func (pd *PdfReaderT) Close() {
 
 // Load() loads a PDF file of a given name.
 func Load(fn string) *PdfReaderT {
+	return load(fn, fancy.FileReader(fn))
+}
+
+// LoadBytes() loads a PDF file from a byte buffer.
+func LoadBytes(b []byte) *PdfReaderT {
+	return load("<buffer>", fancy.BytesReader(b))
+}
+
+func load(fn string, fr fancy.Reader) *PdfReaderT {
 	var rr [][2]int // list of entries to resolve
 
 	r := new(PdfReaderT)
 	r.File = fn
-	r.rdr = fancy.FileReader(fn)
+	r.rdr = fr
 	if r.rdr == nil {
 		util.Log(fn, "FileReader error")
 		return nil

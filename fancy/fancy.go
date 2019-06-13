@@ -12,6 +12,7 @@ import "os"
 import "io"
 import "io/ioutil"
 import "bufio"
+import "bytes"
 
 type Reader interface {
 	ReadAt(buf []byte, pos int64) (n int, err error)
@@ -270,6 +271,11 @@ func FileReader(fn string) Reader {
 		return nil
 	}
 	return SecReader(fil, int64(dir.Size()))
+}
+
+func BytesReader(b []byte) Reader {
+	fil := bytes.NewReader(b)
+	return SecReader(fil, int64(len(b)))
 }
 
 func ReadAll(f io.Reader) []byte {
