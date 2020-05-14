@@ -187,19 +187,18 @@ func Array(s []byte) [][]byte {
 		return nil
 	}
 	rdr := fancy.SliceReader(s[1 : len(s)-1])
-	r := make([][]byte, MAX_PDF_ARRAYSIZE)
-	b := 0
+	r := make([][]byte, 0, MAX_PDF_ARRAYSIZE)
 	for {
-		r[b], _ = refToken(rdr)
-		if len(r[b]) == 0 {
+		v, _ := refToken(rdr)
+		if len(v) == 0 {
 			break
 		}
-		b++
+                r = append(r, v)
 	}
-	if b == 0 {
+	if len(r) == 0 {
 		return nil
 	}
-	return r[0:b]
+	return r
 }
 
 func ForcedArray(s []byte) [][]byte {
