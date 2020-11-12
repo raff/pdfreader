@@ -24,7 +24,8 @@ type ColorSpaceT struct {
 }
 
 type ResourcesT struct {
-	ColorSpaces map[string]ColorSpaceT
+	ColorSpaces    map[string]ColorSpaceT
+	GraphicsStates map[string]DrawerConfigT
 	// Fonts
 	// other resources
 }
@@ -79,6 +80,10 @@ type DrawerConfigT struct {
 
 	FillCS   string
 	StrokeCS string
+
+	Overprint       boolean
+	OverprintStroke boolean
+	OverprintMode   int
 }
 
 func newDrawerConfigT() *DrawerConfigT {
@@ -290,9 +295,12 @@ var PdfOps = map[string]func(pd *PdfDrawerT){
 		pd.Ops["sc"] = pd.Ops["g"]
 	},
 	"gs": func(pd *PdfDrawerT) {
+		dict := string(pd.Stack.Pop()) // graphic state dictionary name in /ExtGState
+		if gs, ok := pd.Resources.GraphicsStates[dict]; ok {
+			// do something with GS
+		}
 		// FIXME!
 		pd.Draw.SetIdentity()
-		pd.Stack.Pop()
 	},
 	"i": func(pd *PdfDrawerT) {
 		pd.Config.SetFlat(pd.Stack.Pop())

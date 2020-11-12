@@ -33,7 +33,8 @@ func Page(pd *pdfread.PdfReaderT, page int, xmlDecl bool) []byte {
 	mbox := util.StringArray(pd.Arr(pd.Att("/MediaBox", pg[page])))
 
 	rdict := pd.Dic(pd.Att("/Resources", pg[page]))
-	resources := graf.ResourcesT{ColorSpaces: map[string]graf.ColorSpaceT{}}
+	resources := graf.ResourcesT{ColorSpaces: map[string]graf.ColorSpaceT{},
+                                     GraphicsStates: map[string]graf.DrawerConfigT{}}
 
 	if cs := pd.Dic(rdict["/ColorSpace"]); cs != nil {
 		for name, ref := range cs {
@@ -61,6 +62,53 @@ func Page(pd *pdfread.PdfReaderT, page int, xmlDecl bool) []byte {
 			util.Logf("ColorSpace %v %v", name, resources.ColorSpaces[name])
 		}
 	}
+
+        if gs := pd./Dic(rdict["/ExtGState"); gs != nil {
+                gstate := graf.DraweConfigT{}
+
+                for name, val := range gs {
+                    switch name {
+                    case "LW": // number: line width
+                        gstate.LineWidth = string(val)
+                    case "LC": // int:    line cap style
+                        gstate.LineCap = string(val)
+                    case "LJ": // int:    line join style
+                        gstate.LineJoin = string(val)
+                    case "ML": // number: miter limit
+                        gstate.MiterLimit = string(val)
+                    case "D":  // array:  line dash pattern
+                    case "RI": // name:   rendering intent
+                    case "OP": // boolean: overprint - all painting operations
+                        bval := string(val) == "true"
+                        gstate.Overprint = bval
+                        gstate.OverprintStroke = bval
+                    case "op": // boolean: overprint - all operations but strokes
+                        bval := string(val) == "true"
+                        gstate.Overprint = bval
+                    case "OPM":  // int: overprint mode
+                    case "Font": // array: [font size]
+                    case "BG":   // function: black generation function
+                    case "BG2":  // function: black generation function or "Default"
+                    case "UCR":  // function: undercolor removal function
+                    case "UCR2":  // function: undercolor removal function or "Default"
+                    case "TR":   // function, array[4] or "Identity": transfer function
+                    case "HR":   // dictionary, stream or "Default": halftone dictionary or stream
+                    case "FL":   // number: flatness tolerance
+                    case "SM":   // number: smoothness tolerance
+                    case "SA":   // boolean: automatic stroke adjustment
+                    case "BM":   // name or array: blend mode
+                    case "SMask": // dictionary or name: current soft mask
+                    case "CA": // number: current stroking alpha constant
+                    case "ca": // number: current alpha constant for non-stroking operations
+                    case "AIS": // boolean: alpha source flag (alpha is shape)
+                    case "TK": // boolean: text knockout flag
+                    }
+
+
+                    resources.GraphicsStates[name] = gstate
+                    util.Logf("GraphicsState %v %v", name, gstate)
+                }
+        }
 
 	drw := svgdraw.NewTestSvg(resources)
 	svgtext.New(pd, drw).Page = page
