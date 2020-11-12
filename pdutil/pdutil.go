@@ -9,6 +9,17 @@ import (
 	"github.com/raff/pdfreader/util"
 )
 
+type Set map[string]struct{}
+
+func (s Set) contains(k string) bool {
+	_, isSet := s[k]
+	return isSet
+}
+
+func (s Set) add(k string) {
+	s[k] = struct{}{}
+}
+
 var (
 	Debugobj = false
 )
@@ -17,19 +28,24 @@ func IsRef(o []byte) bool {
 	return bytes.HasSuffix(o, []byte(" R"))
 }
 
-type printNested struct {
-	visited map[string]bool
+type printNested Set
+
+func (n printNested) visited(v string) bool {
+	if Set(n).contains(v) {
+		return true
+	}
+
+	Set(n).add(v)
+	return false
 }
 
 func (n printNested) printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int, fmtref string) {
 	if IsRef(o) {
 		ref := fmt.Sprintf("<<%s>>", o)
 
-		if n.visited[ref] {
+		if n.visited(ref) {
 			fmt.Fprintf(w, "%s%s %s\n", indent, prefix, ref)
 			return
-		} else {
-			n.visited[ref] = true
 		}
 
 		//if Debugobj {
@@ -149,9 +165,9 @@ func (n printNested) printdic(w io.Writer, pd *pdfread.PdfReaderT, d pdfread.Dic
 }
 
 func Printobj(w io.Writer, pd *pdfread.PdfReaderT, o []byte, indent, prefix string, maxlevel int, fmtref string) {
-	printNested{visited: map[string]bool{}}.printobj(w, pd, o, indent, prefix, maxlevel, fmtref)
+	printNested{}.printobj(w, pd, o, indent, prefix, maxlevel, fmtref)
 }
 
 func Printdic(w io.Writer, pd *pdfread.PdfReaderT, d pdfread.DictionaryT, indent, prefix string, maxlevel int, fmtref string) {
-	printNested{visited: map[string]bool{}}.printdic(w, pd, d, indent, prefix, maxlevel, fmtref)
+	printNested{}.printdic(w, pd, d, indent, prefix, maxlevel, fmtref)
 }
