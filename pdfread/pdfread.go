@@ -193,7 +193,7 @@ func Array(s []byte) [][]byte {
 		if len(v) == 0 {
 			break
 		}
-                r = append(r, v)
+		r = append(r, v)
 	}
 	if len(r) == 0 {
 		return nil
