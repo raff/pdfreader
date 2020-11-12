@@ -80,6 +80,12 @@ func String(s []byte) string {
 		if len(s) > 2 && s[0] == 0xFE && s[1] == 0xFF { // Unicode string (UTF-16BE)
 			ucodes := []uint16{}
 
+			if len(s)%2 == 1 {
+				// Should be UTF-16 but length is invalid
+				Log("invalid UTF-16 string", string(s))
+				return ""
+			}
+
 			for i := 2; i < len(s); i += 2 {
 				u := uint16(s[i+0])*256 + uint16(s[i+1])
 				ucodes = append(ucodes, u)
